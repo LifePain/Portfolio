@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VOID//BASTION — Co-op Horde Defense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Archivo:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #00FF88;
+    --accent-dim: #1AFF9C;
+    --accent-glow: rgba(0, 255, 136, 0.4);
+    --bg: #050805;
+    --bg-elev: #0A120A;
+    --text: #E6FFEF;
+    --text-muted: rgba(230, 255, 239, 0.55);
+    --border: rgba(0, 255, 136, 0.12);
+    --card-bg: rgba(10, 20, 14, 0.6);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body {
+    font-family: 'Archivo', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  ::selection { background: var(--accent); color: #000; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #0A120A; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent), var(--accent-dim));
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover { box-shadow: 0 0 10px var(--accent-glow); }
+
+  h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ═══════════ STARSCAPE ═══════════ */
+  #starscape {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 0;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* ═══════════ LOADER ═══════════ */
+  #loader {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s ease;
+  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
+  .loader-brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent-glow);
+    margin-bottom: 2rem;
+  }
+  .loader-brand .slash { opacity: 0.5; }
+  .loader-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 0.3em;
+    margin-bottom: 1rem;
+  }
+  .loader-bar {
+    width: 240px;
+    height: 2px;
+    background: rgba(0, 255, 136, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .loader-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+    width: 0%;
+    box-shadow: 0 0 12px var(--accent-glow);
+    transition: width 0.2s ease;
+  }
+
+  /* ═══════════ SCROLL PROGRESS ═══════════ */
+  #scroll-progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+    z-index: 1000;
+    box-shadow: 0 0 10px var(--accent-glow);
+    transition: width 0.05s linear;
+  }
+
+  /* ═══════════ NAVBAR ═══════════ */
+  .navbar {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 100%;
+    z-index: 100;
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0;
+  }
+  .navbar.scrolled {
+    top: 1rem;
+    max-width: 820px;
+    background: rgba(10, 18, 10, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 0.7rem 1.6rem;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+    color: var(--text);
+  }
+  .nav-logo {
+    width: 28px;
+    height: 28px;
+    position: relative;
+  }
+  .nav-logo svg { width: 100%; height: 100%; }
+  .nav-brand .slash { color: var(--accent); }
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+  .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-cta {
+    background: var(--accent);
+    color: #000 !important;
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    font-weight: 600 !important;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+
+  /* ═══════════ HERO ═══════════ */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6rem 2rem 4rem;
+    text-align: center;
+    z-index: 2;
+    overflow: hidden;
+  }
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .orb-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    top: -100px; left: -100px;
+  }
+  .orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, #00AA55 0%, transparent 70%);
+    bottom: -100px; right: -100px;
+  }
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 255, 136, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 136, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    pointer-events: none;
+  }
+  .hero-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.35em;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: rgba(0, 255, 136, 0.05);
+    position: relative;
+    z-index: 2;
+  }
+  .hero-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-right: 0.6rem;
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse-dot 1.5s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .hero-title {
+    font-size: clamp(2.8rem, 8vw, 6rem);
+    font-weight: 700;
+    line-height: 0.95;
+    margin-bottom: 1.5rem;
+    max-width: 1000px;
+    position: relative;
+    z-index: 2;
+  }
+  .hero-title .accent {
+    color: var(--accent);
+    text-shadow: 0 0 40px var(--accent-glow);
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    color: var(--text-muted);
+    max-width: 620px;
+    margin-bottom: 2.5rem;
+    position: relative;
+    z-index: 2;
+  }
+  .hero-ctas {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+  }
+  .btn {
+    padding: 0.9rem 1.8rem;
+    border-radius: 100px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 36px var(--accent-glow);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--text-muted);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    animation: bounce 2s infinite;
+  }
+  .scroll-hint::after {
+    content: '';
+    width: 1px;
+    height: 24px;
+    background: linear-gradient(180deg, var(--accent), transparent);
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translate(-50%, 0); }
+    50% { transform: translate(-50%, 8px); }
+  }
+
+  /* ═══════════ SCROLL ANIMATION ═══════════ */
+  .scroll-animation {
+    position: relative;
+    height: 500vh;
+    z-index: 3;
+  }
+  .sticky-canvas {
+    position: sticky;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #frame-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .canvas-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(5, 8, 5, 0.7) 100%);
+    z-index: 2;
+  }
+  .canvas-hud {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    text-shadow: 0 0 10px rgba(0,0,0,0.8);
+  }
+  .canvas-hud .hud-label { color: var(--text-muted); }
+  .canvas-hud .hud-value { color: var(--accent); }
+  .canvas-hud-right {
+    left: auto; right: 2rem; text-align: right;
+  }
+
+  /* Annotation cards */
+  .annotation {
+    position: absolute;
+    bottom: 6vh;
+    left: 2rem;
+    max-width: 420px;
+    padding: 1.5rem 1.8rem;
+    background: rgba(10, 18, 10, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    z-index: 3;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+  }
+  .annotation.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .annotation .stage {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .annotation .stage-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.65rem;
+  }
+  .annotation h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    line-height: 1.1;
+  }
+  .annotation p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin-bottom: 0.8rem;
+  }
+  .annotation .stat-row {
+    display: flex;
+    gap: 1.5rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+  }
+  .annotation .stat-val {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .annotation .stat-lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+
+  /* ═══════════ SPECS ═══════════ */
+  .specs {
+    position: relative;
+    z-index: 4;
+    background: var(--bg);
+    padding: 8rem 2rem;
+    border-top: 1px solid var(--border);
+  }
+  .section-head {
+    max-width: 1200px;
+    margin: 0 auto 4rem;
+    text-align: center;
+  }
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 1rem;
+  }
+  .section-sub {
+    color: var(--text-muted);
+    max-width: 560px;
+    margin: 0 auto;
+    font-size: 1rem;
+  }
+  .specs-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+  .spec-item {
+    text-align: center;
+    padding: 2rem 1rem;
+    position: relative;
+  }
+  .spec-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .spec-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(3rem, 6vw, 5rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 30px var(--accent-glow);
+    transition: text-shadow 0.3s ease;
+  }
+  .spec-num.counting {
+    text-shadow: 0 0 50px var(--accent-glow), 0 0 80px var(--accent-glow);
+  }
+  .spec-num .unit {
+    font-size: 0.4em;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 0.1em;
+  }
+  .spec-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+  }
+
+  /* ═══════════ FEATURES ═══════════ */
+  .features {
+    position: relative;
+    z-index: 4;
+    background: var(--bg);
+    padding: 8rem 2rem;
+  }
+  .features-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  .feature-card {
+    padding: 2rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    transition: left 0.6s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(0, 255, 136, 0.3);
+  }
+  .feature-card:hover::before { left: 100%; }
+  .feature-icon {
+    width: 48px; height: 48px;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    color: var(--accent);
+  }
+  .feature-card h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+  }
+  .feature-card p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  /* ═══════════ CTA ═══════════ */
+  .cta {
+    position: relative;
+    z-index: 4;
+    background: var(--bg);
+    padding: 8rem 2rem;
+    text-align: center;
+    overflow: hidden;
+  }
+  .cta-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    background:
+      radial-gradient(ellipse at top, rgba(0, 255, 136, 0.1), transparent 60%),
+      var(--card-bg);
+    backdrop-filter: blur(20px);
+    position: relative;
+  }
+  .cta-inner::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 32px;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--accent), transparent, var(--accent));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .cta h2 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    line-height: 1;
+  }
+  .cta p {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    font-size: 1.05rem;
+  }
+
+  /* ═══════════ FOOTER ═══════════ */
+  .footer {
+    position: relative;
+    z-index: 4;
+    background: var(--bg);
+    padding: 3rem 2rem 2rem;
+    border-top: 1px solid var(--border);
+  }
+  .footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+  .footer-brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text);
+  }
+  .footer-brand .slash { color: var(--accent); }
+  .footer-links {
+    display: flex;
+    gap: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+  }
+  .footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--accent); }
+  .footer-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* ═══════════ MOBILE ═══════════ */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .navbar { padding: 0.9rem 1.2rem; }
+    .navbar.scrolled { padding: 0.6rem 1.2rem; max-width: calc(100% - 2rem); }
+    .hero { padding: 5rem 1.2rem 3rem; }
+    .scroll-animation { height: 300vh; }
+    .specs-grid { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+    .spec-item { padding: 1.5rem 0.5rem; }
+    .features-grid { grid-template-columns: 1fr; }
+    .canvas-hud { font-size: 0.6rem; top: 1rem; left: 1rem; }
+    .canvas-hud-right { right: 1rem; }
+
+    /* Compact annotation cards on mobile */
+    .annotation {
+      bottom: 1.5vh;
+      left: 1rem;
+      right: 1rem;
+      max-width: none;
+      padding: 0.8rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+    .annotation h3 {
+      font-size: 0.95rem;
+      margin-bottom: 0;
+      flex: 1;
+    }
+    .annotation .stage { margin-bottom: 0; }
+    .annotation .stage span:not(.stage-num) { display: none; }
+    .annotation p,
+    .annotation .stat-row { display: none; }
+    .specs { padding: 5rem 1.2rem; }
+    .features { padding: 5rem 1.2rem; }
+    .cta { padding: 5rem 1.2rem; }
+    .cta-inner { padding: 3rem 1.5rem; }
+  }
+
+  @media (max-width: 500px) {
+    .scroll-animation { height: 250vh; }
+    .hero-ctas { flex-direction: column; width: 100%; }
+    .hero-ctas .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Starscape -->
+<canvas id="starscape"></canvas>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-brand">VOID<span class="slash">//</span>BASTION</div>
+  <div class="loader-label">INITIALIZING BASTION</div>
+  <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+</div>
+
+<!-- Scroll progress bar -->
+<div id="scroll-progress"></div>
+
+<!-- Navbar -->
+<nav class="navbar" id="navbar">
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 2 L28 16 L16 30 L4 16 Z" stroke="#00FF88" stroke-width="1.8" fill="rgba(0,255,136,0.1)"/>
+        <circle cx="16" cy="16" r="4" fill="#00FF88"/>
+        <circle cx="16" cy="16" r="7" stroke="#00FF88" stroke-width="0.8" opacity="0.5"/>
+      </svg>
+    </div>
+    <span>VOID<span class="slash">//</span>BASTION</span>
+  </div>
+  <div class="nav-links">
+    <a href="#evolve">THREAT</a>
+    <a href="#specs">SCALE</a>
+    <a href="#features">SYSTEMS</a>
+    <a href="#cta" class="nav-cta">PLAY</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-orb orb-1"></div>
+  <div class="hero-orb orb-2"></div>
+  <div class="grid-overlay"></div>
+  <div class="hero-tag">INCURSION IMMINENT // WAVE 01 IN 12 DAYS</div>
+  <h1 class="hero-title">HOLD THE LINE<br><span class="accent">AGAINST THE SWARM</span></h1>
+  <p class="hero-sub">Co-op RTS horde defense. Build the bastion, command your army, and survive an alien horde that evolves, nests, and learns — every wave. Up to 4 players. 20,000+ units.</p>
+  <div class="hero-ctas">
+    <a href="#cta" class="btn btn-primary">REQUEST ACCESS →</a>
+    <a href="#evolve" class="btn btn-secondary">WATCH THE THREAT EVOLVE</a>
+  </div>
+  <div class="scroll-hint">SCROLL · 4 RANKS</div>
+</section>
+
+<!-- SCROLL ANIMATION -->
+<section class="scroll-animation" id="evolve">
+  <div class="sticky-canvas">
+    <canvas id="frame-canvas"></canvas>
+    <div class="canvas-vignette"></div>
+    <div class="canvas-hud">
+      <div><span class="hud-label">THREAT:</span> <span class="hud-value">XG-001</span></div>
+      <div><span class="hud-label">PHASE:</span> <span class="hud-value" id="phase-val">GENESIS</span></div>
+      <div><span class="hud-label">HQ INTEGRITY:</span> <span class="hud-value" id="integrity-val">100%</span></div>
+    </div>
+    <div class="canvas-hud canvas-hud-right">
+      <div><span class="hud-label">THREAT MASS:</span> <span class="hud-value" id="mass-val">1.0×</span></div>
+      <div><span class="hud-label">RANK:</span> <span class="hud-value" id="evo-val">1/5</span></div>
+      <div><span class="hud-label">AGGRESSION:</span> <span class="hud-value" id="progress-val">0%</span></div>
+    </div>
+
+    <!-- 4 annotation cards, one per waypoint -->
+    <div class="annotation" data-show="0.18" data-hide="0.40" data-stage="1">
+      <div class="stage"><span class="stage-num">01</span><span>RANK 2 // DORSAL</span></div>
+      <h3>The horde hardens.</h3>
+      <p>Xenos hit Rank 2. Tier 2 dens become hunting grounds. Wave budget climbs. Your starter walls won't be enough for long.</p>
+      <div class="stat-row">
+        <div><div class="stat-val">+40%</div><div class="stat-lbl">THREAT MASS</div></div>
+        <div><div class="stat-val">T2</div><div class="stat-lbl">HUNT TIER</div></div>
+      </div>
+    </div>
+
+    <div class="annotation" data-show="0.49" data-hide="0.63" data-stage="2">
+      <div class="stage"><span class="stage-num">02</span><span>RANK 3 // CARAPACE</span></div>
+      <h3>Major nests wake.</h3>
+      <p>Global aggression crosses 8. Tier 3 nests activate and start spawning. Carapace-tier xenos shrug off turret fire. Trade resources or lose a base.</p>
+      <div class="stat-row">
+        <div><div class="stat-val">+65%</div><div class="stat-lbl">THREAT MASS</div></div>
+        <div><div class="stat-val">T3</div><div class="stat-lbl">NESTS AWAKE</div></div>
+      </div>
+    </div>
+
+    <div class="annotation" data-show="0.72" data-hide="0.88" data-stage="3">
+      <div class="stage"><span class="stage-num">03</span><span>RANK 4 // OCULAR</span></div>
+      <h3>Scouts probe the bastion.</h3>
+      <p>Xenos enter the Scout state — skirmishers test your perimeter between waves. DangerZone alphas stir. Every gap in your wall is being measured.</p>
+      <div class="stat-row">
+        <div><div class="stat-val">+80%</div><div class="stat-lbl">THREAT MASS</div></div>
+        <div><div class="stat-val">ACTIVE</div><div class="stat-lbl">SCOUTING</div></div>
+      </div>
+    </div>
+
+    <div class="annotation" data-show="0.95" data-hide="1.02" data-stage="4">
+      <div class="stage"><span class="stage-num">04</span><span>RANK 5 // APEX</span></div>
+      <h3>Cascade. Apex unleashed.</h3>
+      <p>Apex nests spawn. Destroy one and orphaned xenos go feral, inheriting DNA and fleeing to the next hive. The map belongs to them now.</p>
+      <div class="stat-row">
+        <div><div class="stat-val">5.0×</div><div class="stat-lbl">THREAT MASS</div></div>
+        <div><div class="stat-val">MAX</div><div class="stat-lbl">AGGRESSION</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SPECS -->
+<section class="specs" id="specs">
+  <div class="section-head">
+    <div class="section-tag">// ENGAGEMENT SCALE</div>
+    <h2 class="section-title">Built for the swarm.</h2>
+    <p class="section-sub">A Pure-DOTS RTS engineered to put a living, hunting alien horde at your walls — in numbers no conventional game can field.</p>
+  </div>
+  <div class="specs-grid">
+    <div class="spec-item">
+      <div class="spec-num" data-target="4" data-suffix="">0</div>
+      <div class="spec-label">PLAYER CO-OP</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-num" data-target="20" data-suffix="K">0</div>
+      <div class="spec-label">UNITS ON FIELD</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-num" data-target="64" data-suffix="">0</div>
+      <div class="spec-label">MAP SECTORS</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-num" data-target="5" data-suffix="">0</div>
+      <div class="spec-label">XENO RANKS</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-head">
+    <div class="section-tag">// CORE SYSTEMS</div>
+    <h2 class="section-title">Command. Contest. Contain.</h2>
+    <p class="section-sub">Every system tuned to make the horde feel alive, hungry, and relentless — and to give you the tools to hold against it.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h4l3-9 4 18 3-9h4"/>
+        </svg>
+      </div>
+      <h4>Flow-Field Command</h4>
+      <p>Thousands of units route simultaneously through integration fields. No stuck pathing, no A* bottlenecks — just armies that move like armies.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6M12 17v6M1 12h6M17 12h6M4.2 4.2l4.3 4.3M15.5 15.5l4.3 4.3M4.2 19.8l4.3-4.3M15.5 8.5l4.3-4.3"/>
+        </svg>
+      </div>
+      <h4>Evolving Horde AI</h4>
+      <p>Xenos run an 8-state brain — hunt, forage, haul, defend, scout. Nests accumulate biomass, unlock tiers, and wake as global aggression climbs.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/>
+        </svg>
+      </div>
+      <h4>Build & Defend</h4>
+      <p>Drop your HQ. Raise walls. Place turrets. Command selectable units with drag-box and right-click orders. Classic RTS control, modern scale.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2 L16 8 L22 10 L17 15 L18 22 L12 19 L6 22 L7 15 L2 10 L8 8 Z"/>
+        </svg>
+      </div>
+      <h4>Contest the Fauna</h4>
+      <p>Share the map with territorial wildlife. Hunt them for biomass and traits — or deny xenos their food supply. Alpha guardians protect the richest dens.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+      </div>
+      <h4>Nest Cascade</h4>
+      <p>Destroy a nest and its orphaned xenos go feral, inheriting DNA and fleeing to the next hive. Every victory reshapes the threat.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <h4>4-Player Co-Op</h4>
+      <p>Separate bases. Shared vision. Resource trading between allies. No PvP — just you, your squad, and the swarm at the walls.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="cta">
+  <div class="cta-inner">
+    <div class="section-tag">// ACCESS PROTOCOL</div>
+    <h2>Ready to hold<br>the bastion?</h2>
+    <p>Join the closed alpha. Early defenders receive a Founder's HQ — a one-of-one base cosmetic and priority access to every new wave.</p>
+    <div class="hero-ctas">
+      <a href="#" class="btn btn-primary">REQUEST ACCESS →</a>
+      <a href="#" class="btn btn-secondary">VIEW ROADMAP</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">VOID<span class="slash">//</span>BASTION</div>
+    <div class="footer-links">
+      <a href="#">DEVLOG</a>
+      <a href="#">DISCORD</a>
+      <a href="#">TWITTER</a>
+      <a href="#">PRESS KIT</a>
+    </div>
+    <div class="footer-note">© 2026 // BASTION COMMAND</div>
+  </div>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   VOID//BASTION — scroll-driven threat evolution site
+   ══════════════════════════════════════════════════════════════════ */
+
+const TOTAL_FRAMES = 120;
+const FRAME_PATH = (i) => `frames/frame_${String(i).padStart(4, '0')}.jpg`;
+
+/* ─── STARSCAPE ─────────────────────────────────────────────── */
+(function starscape() {
+  const cvs = document.getElementById('starscape');
+  const ctx = cvs.getContext('2d');
+  let w, h, stars = [];
+  const STAR_COUNT = 180;
+
+  function resize() {
+    w = cvs.width = window.innerWidth;
+    h = cvs.height = window.innerHeight;
+    stars = Array.from({ length: STAR_COUNT }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.2 + 0.3,
+      drift: (Math.random() - 0.5) * 0.1,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+      twinklePhase: Math.random() * Math.PI * 2,
+      baseOpacity: Math.random() * 0.6 + 0.2,
+      hue: Math.random() > 0.7 ? 140 : 0 // some green stars
+    }));
+  }
+
+  function tick(t) {
+    ctx.clearRect(0, 0, w, h);
+    stars.forEach(s => {
+      s.x += s.drift;
+      if (s.x > w) s.x = 0;
+      if (s.x < 0) s.x = w;
+      const o = s.baseOpacity * (0.5 + 0.5 * Math.sin(t * s.twinkleSpeed + s.twinklePhase));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      if (s.hue === 140) {
+        ctx.fillStyle = `rgba(0, 255, 136, ${o})`;
+      } else {
+        ctx.fillStyle = `rgba(230, 255, 239, ${o})`;
+      }
+      ctx.fill();
+    });
+    requestAnimationFrame(tick);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(tick);
+})();
+
+/* ─── FRAME PRELOAD + LOADER ─────────────────────────────────── */
+const frames = new Array(TOTAL_FRAMES);
+let loadedCount = 0;
+const loaderFill = document.getElementById('loader-fill');
+const loader = document.getElementById('loader');
+
+function preloadFrames() {
+  return new Promise(resolve => {
+    for (let i = 0; i < TOTAL_FRAMES; i++) {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        loadedCount++;
+        loaderFill.style.width = `${(loadedCount / TOTAL_FRAMES) * 100}%`;
+        if (loadedCount === TOTAL_FRAMES) resolve();
+      };
+      img.src = FRAME_PATH(i + 1);
+      frames[i] = img;
+    }
+  });
+}
+
+/* ─── SCROLL-DRIVEN CANVAS ───────────────────────────────────── */
+const canvas = document.getElementById('frame-canvas');
+const ctx = canvas.getContext('2d');
+let currentFrame = -1;
+let canvasW, canvasH;
+
+function sizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  canvasW = window.innerWidth;
+  canvasH = window.innerHeight;
+  canvas.width = canvasW * dpr;
+  canvas.height = canvasH * dpr;
+  canvas.style.width = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawFrame(currentFrame < 0 ? 0 : currentFrame, true);
+}
+
+function drawFrame(idx, force = false) {
+  if (!force && idx === currentFrame) return;
+  const img = frames[idx];
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  currentFrame = idx;
+  const iw = img.naturalWidth;
+  const ih = img.naturalHeight;
+  const ia = iw / ih;
+  const ca = canvasW / canvasH;
+
+  const isMobile = window.innerWidth <= 768;
+  let dw, dh, dx, dy;
+
+  if (isMobile) {
+    // contain-fit slightly zoomed
+    const zoom = 1.15;
+    if (ia > ca) {
+      dh = canvasH * zoom;
+      dw = dh * ia;
+    } else {
+      dw = canvasW * zoom;
+      dh = dw / ia;
+    }
+  } else {
+    // cover-fit
+    if (ia > ca) {
+      dh = canvasH;
+      dw = dh * ia;
+    } else {
+      dw = canvasW;
+      dh = dw / ia;
+    }
+  }
+  dx = (canvasW - dw) / 2;
+  dy = (canvasH - dh) / 2;
+  ctx.fillStyle = '#050805';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+/* ─── SCROLL HANDLERS ────────────────────────────────────────── */
+const scrollAnim = document.getElementById('evolve');
+const progressBar = document.getElementById('scroll-progress');
+const navbar = document.getElementById('navbar');
+const annotations = document.querySelectorAll('.annotation');
+const phaseVal = document.getElementById('phase-val');
+const integrityVal = document.getElementById('integrity-val');
+const massVal = document.getElementById('mass-val');
+const evoVal = document.getElementById('evo-val');
+const progressVal = document.getElementById('progress-val');
+
+const PHASES = [
+  { at: 0.00, name: 'GENESIS',  mass: '1.0×', evo: '1/5', integrity: 100 },
+  { at: 0.25, name: 'DORSAL',   mass: '1.4×', evo: '2/5', integrity: 88 },
+  { at: 0.50, name: 'CARAPACE', mass: '1.65×', evo: '3/5', integrity: 62 },
+  { at: 0.75, name: 'OCULAR',   mass: '1.8×', evo: '4/5', integrity: 34 },
+  { at: 1.00, name: 'APEX',     mass: '5.0×', evo: '5/5', integrity: 0 }
+];
+
+let ticking = false;
+let animProgress = 0;
+
+function onScroll() {
+  // Global scroll progress for top bar
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const globalProg = Math.max(0, Math.min(1, window.scrollY / docHeight));
+  progressBar.style.width = `${globalProg * 100}%`;
+
+  // Navbar scrolled state
+  if (window.scrollY > 60) navbar.classList.add('scrolled');
+  else navbar.classList.remove('scrolled');
+
+  // Animation section progress (0 to 1 across the sticky section)
+  const rect = scrollAnim.getBoundingClientRect();
+  const sectionHeight = scrollAnim.offsetHeight - window.innerHeight;
+  const scrolled = Math.max(0, -rect.top);
+  animProgress = Math.max(0, Math.min(1, scrolled / sectionHeight));
+
+  if (!ticking) {
+    requestAnimationFrame(() => {
+      const frameIdx = Math.min(TOTAL_FRAMES - 1, Math.floor(animProgress * TOTAL_FRAMES));
+      drawFrame(frameIdx);
+
+      // Annotation visibility
+      annotations.forEach(a => {
+        const s = parseFloat(a.dataset.show);
+        const h = parseFloat(a.dataset.hide);
+        if (animProgress >= s && animProgress < h) a.classList.add('visible');
+        else a.classList.remove('visible');
+      });
+
+      // HUD update — pick closest phase that's been reached
+      let activePhase = PHASES[0];
+      for (const p of PHASES) {
+        if (animProgress >= p.at - 0.03) activePhase = p;
+      }
+      phaseVal.textContent = activePhase.name;
+      massVal.textContent = activePhase.mass;
+      evoVal.textContent = activePhase.evo;
+      integrityVal.textContent = activePhase.integrity + '%';
+      progressVal.textContent = Math.round(animProgress * 100) + '%';
+
+      ticking = false;
+    });
+    ticking = true;
+  }
+}
+
+window.addEventListener('scroll', onScroll, { passive: true });
+window.addEventListener('resize', sizeCanvas);
+
+/* ─── SCROLL-JACKING: SMOOTH WAYPOINT ANIMATION ───────────────
+   One scroll input = animate smoothly to the next waypoint.
+   Waypoints: 0% → 21% → 52% → 75% → 100%
+   ────────────────────────────────────────────────────────── */
+const WAYPOINTS = [0, 0.21, 0.52, 0.75, 1.00];
+const ANIMATION_DURATION = 1100; // ms to travel between waypoints
+const POST_ANIMATION_COOLDOWN = 180; // ms lock after animation ends
+let isJacking = false;
+
+function getScrollYForProgress(p) {
+  const sectionTop = scrollAnim.offsetTop;
+  const maxScroll = scrollAnim.offsetHeight - window.innerHeight;
+  return sectionTop + (p * maxScroll);
+}
+
+function getCurrentAnimProgress() {
+  const rect = scrollAnim.getBoundingClientRect();
+  const sectionHeight = scrollAnim.offsetHeight - window.innerHeight;
+  const scrolled = -rect.top;
+  return scrolled / sectionHeight;
+}
+
+function isInJackZone() {
+  const p = getCurrentAnimProgress();
+  return p >= -0.02 && p <= 1.02;
+}
+
+function smoothScrollTo(targetY, duration = ANIMATION_DURATION) {
+  isJacking = true;
+  const startY = window.scrollY;
+  const delta = targetY - startY;
+  const startTime = performance.now();
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(1, elapsed / duration);
+    // easeInOutCubic — cinematic feel
+    const eased = t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    window.scrollTo(0, startY + delta * eased);
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      // Grace period so trackpad/inertia doesn't immediately trigger next waypoint
+      setTimeout(() => { isJacking = false; }, POST_ANIMATION_COOLDOWN);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function findNextWaypoint(currentP, direction) {
+  if (direction > 0) {
+    return WAYPOINTS.find(w => w > currentP + 0.01);
+  } else {
+    // Find largest waypoint strictly less than current
+    for (let i = WAYPOINTS.length - 1; i >= 0; i--) {
+      if (WAYPOINTS[i] < currentP - 0.01) return WAYPOINTS[i];
+    }
+    return undefined;
+  }
+}
+
+function handleDirectionalScroll(direction, e) {
+  if (isJacking) {
+    e.preventDefault();
+    return;
+  }
+  if (!isInJackZone()) return; // outside section — natural scroll
+
+  const p = getCurrentAnimProgress();
+  const target = findNextWaypoint(p, direction);
+
+  if (target === undefined) {
+    // At an endpoint — release to natural scroll
+    return;
+  }
+  e.preventDefault();
+  smoothScrollTo(getScrollYForProgress(target));
+}
+
+// ─── WHEEL ───
+window.addEventListener('wheel', (e) => {
+  const direction = e.deltaY > 0 ? 1 : -1;
+  if (Math.abs(e.deltaY) < 4) return; // ignore micro-scrolls
+  handleDirectionalScroll(direction, e);
+}, { passive: false });
+
+// ─── KEYBOARD ───
+window.addEventListener('keydown', (e) => {
+  const downKeys = ['ArrowDown', 'PageDown', ' ', 'Spacebar'];
+  const upKeys = ['ArrowUp', 'PageUp'];
+  if (downKeys.includes(e.key)) handleDirectionalScroll(1, e);
+  else if (upKeys.includes(e.key)) handleDirectionalScroll(-1, e);
+});
+
+// ─── TOUCH (mobile swipe) ───
+let touchStartY = null;
+window.addEventListener('touchstart', (e) => {
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+  if (isJacking) { e.preventDefault(); return; }
+  if (touchStartY === null || !isInJackZone()) return;
+  const currentY = e.touches[0].clientY;
+  const delta = touchStartY - currentY;
+  if (Math.abs(delta) < 40) return; // require minimum swipe distance
+
+  const direction = delta > 0 ? 1 : -1;
+  touchStartY = null; // consume swipe
+  handleDirectionalScroll(direction, e);
+}, { passive: false });
+
+window.addEventListener('touchend', () => { touchStartY = null; }, { passive: true });
+
+/* ─── COUNT-UP SPEC NUMBERS ──────────────────────────────────── */
+function animateCount(el, target, suffix, duration) {
+  const start = performance.now();
+  el.classList.add('counting');
+  function step(now) {
+    const elapsed = now - start;
+    const t = Math.min(1, elapsed / duration);
+    const easeOutExpo = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+    const val = Math.floor(target * easeOutExpo);
+    el.innerHTML = val + (suffix ? `<span class="unit">${suffix}</span>` : '');
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      el.innerHTML = target + (suffix ? `<span class="unit">${suffix}</span>` : '');
+      setTimeout(() => el.classList.remove('counting'), 400);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+const specObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.spec-num').forEach((el, i) => {
+        const target = parseInt(el.dataset.target, 10);
+        const suffix = el.dataset.suffix || '';
+        setTimeout(() => animateCount(el, target, suffix, 1600), i * 200);
+      });
+      specObserver.disconnect();
+    }
+  });
+}, { threshold: 0.3 });
+
+/* ─── INIT ───────────────────────────────────────────────────── */
+sizeCanvas();
+preloadFrames().then(() => {
+  setTimeout(() => {
+    loader.classList.add('hidden');
+    setTimeout(() => loader.remove(), 700);
+    drawFrame(0, true);
+    onScroll();
+    const specsSection = document.querySelector('.specs');
+    if (specsSection) specObserver.observe(specsSection);
+  }, 300);
+});
+</script>
+
+</body>
+</html>
