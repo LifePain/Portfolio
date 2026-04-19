@@ -33,7 +33,7 @@
 
 /* ═══════════ RESET ═══════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-snap-type: y mandatory; }
 body {
   font-family: var(--font-display);
   font-weight: 400;
@@ -70,7 +70,7 @@ h2 { font-size: clamp(2.5rem, 5vw, 4rem); }
 
 /* ═══════════ LAYOUT PRIMITIVES ═══════════ */
 .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
-section { padding: clamp(4rem, 10vw, 10rem) 0; }
+section { padding: clamp(4rem, 10vw, 10rem) 0; scroll-snap-align: start; scroll-snap-stop: always; }
 section.full-bleed { padding-left: 0; padding-right: 0; }
 
 /* ═══════════ BUTTONS ═══════════ */
@@ -175,9 +175,10 @@ html.no-js .reveal { opacity: 1; transform: none; }
 
 /* ═══════════ HERO ═══════════ */
 .hero {
-  min-height: calc(100vh - 64px);
-  padding-top: calc(64px + clamp(3rem, 8vw, 6rem));
-  padding-bottom: clamp(3rem, 8vw, 6rem);
+  min-height: 100vh;
+  height: 100vh;
+  padding-top: calc(64px + clamp(2rem, 6vw, 4rem));
+  padding-bottom: clamp(2rem, 6vw, 4rem);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -218,9 +219,16 @@ html.no-js .reveal { opacity: 1; transform: none; }
 }
 
 /* ═══════════ ABOUT ═══════════ */
+.about {
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: calc(64px + 2rem) 0 2rem;
+}
 .about .eyebrow { margin-bottom: 1rem; }
 .about h2 { margin-bottom: 1.25rem; max-width: 18ch; }
-.about > .container > .sub { max-width: 720px; margin-bottom: 4rem; }
+.about > .container > .sub { max-width: 720px; margin-bottom: 3rem; }
 .about-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -248,8 +256,7 @@ html.no-js .reveal { opacity: 1; transform: none; }
   padding: 0;
 }
 .showcase-inner {
-  position: sticky;
-  top: 0;
+  height: 100vh;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -301,7 +308,7 @@ html.no-js .reveal { opacity: 1; transform: none; }
 .showcase-features li:last-child { border-bottom: 1px solid var(--hairline-dark); }
 
 /* ═══════════ VOID BASTION SPECIFIC ═══════════ */
-.vb-section { min-height: 240vh; position: relative; }
+.vb-section { min-height: 100vh; height: 100vh; position: relative; }
 .vb-section .accent { color: var(--vb-accent); }
 .vb-canvas-wrap {
   width: 100%;
@@ -334,6 +341,7 @@ html.no-js .reveal { opacity: 1; transform: none; }
 .pmu-section {
   background: linear-gradient(180deg, #130A1F 0%, var(--bg-dark) 100%);
   min-height: 100vh;
+  height: 100vh;
   display: flex;
   align-items: center;
   padding: clamp(5rem, 10vw, 8rem) 2rem;
@@ -405,7 +413,13 @@ html.no-js .reveal { opacity: 1; transform: none; }
 /* ═══════════ CONTACT ═══════════ */
 .contact {
   text-align: center;
-  padding: clamp(6rem, 14vw, 12rem) 0;
+  padding: 0 0 2rem;
+  min-height: calc(100vh - 90px);
+  height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .contact .eyebrow { margin-bottom: 1.5rem; }
 .contact h2 {
@@ -425,7 +439,9 @@ html.no-js .reveal { opacity: 1; transform: none; }
 /* ═══════════ FOOTER ═══════════ */
 .footer {
   border-top: 1px solid var(--hairline);
-  padding: 2.5rem 0;
+  padding: 2rem 0;
+  height: 90px;
+  scroll-snap-align: none;
 }
 .footer-inner {
   max-width: 1200px;
@@ -596,18 +612,22 @@ function updateNav() {
 window.addEventListener('scroll', updateNav, { passive: true });
 updateNav();
 
-/* ─── VOID BASTION SCROLL-FRAME ─── */
+/* ─── VOID BASTION AUTO-PLAY ANIMATION ─── */
 const VB_TOTAL_FRAMES = 120;
 const VB_FRAME_PATH = (i) => `./void-bastion/frames/frame_${String(i).padStart(4, '0')}.jpg`;
+const VB_DURATION_MS = 3500;
 const vbSection = document.querySelector('.vb-section');
 const vbWrap = document.querySelector('.vb-canvas-wrap');
 const vbCanvas = document.getElementById('vb-canvas');
 const vbCtx = vbCanvas ? vbCanvas.getContext('2d') : null;
 const vbFrames = new Array(VB_TOTAL_FRAMES);
-let vbLoaded = 0;
 let vbErrors = 0;
 let vbCurrentFrame = -1;
 let vbCanvasW = 0, vbCanvasH = 0;
+let vbHasPlayed = false;
+let vbAllLoaded = false;
+let vbLoadedCount = 0;
+const vbReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function vbSizeCanvas() {
   if (!vbCanvas || !vbCtx) return;
@@ -620,7 +640,7 @@ function vbSizeCanvas() {
   vbCanvas.style.width = vbCanvasW + 'px';
   vbCanvas.style.height = vbCanvasH + 'px';
   vbCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  vbDrawFrame(vbCurrentFrame < 0 ? 0 : vbCurrentFrame, true);
+  if (vbCurrentFrame >= 0) vbDrawFrame(vbCurrentFrame, true);
 }
 
 function vbDrawFrame(idx, force) {
@@ -644,13 +664,12 @@ function vbDrawFrame(idx, force) {
 }
 
 function vbPreload() {
-  const finalIdx = VB_TOTAL_FRAMES - 1;
-  const initialIdx = vbReducedMotion ? finalIdx : 0;
   for (let i = 0; i < VB_TOTAL_FRAMES; i++) {
     const img = new Image();
     img.onload = () => {
-      vbLoaded++;
-      if (i === initialIdx) vbDrawFrame(initialIdx, true);
+      vbLoadedCount++;
+      if (i === 0) vbDrawFrame(0, true);
+      if (vbLoadedCount === VB_TOTAL_FRAMES) vbAllLoaded = true;
     };
     img.onerror = () => {
       vbErrors++;
@@ -661,27 +680,51 @@ function vbPreload() {
   }
 }
 
-function vbOnScroll() {
-  if (!vbSection) return;
-  const rect = vbSection.getBoundingClientRect();
-  const sectionHeight = vbSection.offsetHeight - window.innerHeight;
-  if (sectionHeight <= 0) return;
-  const scrolled = Math.max(0, -rect.top);
-  const progress = Math.max(0, Math.min(1, scrolled / sectionHeight));
-  const frameIdx = Math.min(VB_TOTAL_FRAMES - 1, Math.floor(progress * VB_TOTAL_FRAMES));
-  vbDrawFrame(frameIdx);
+function vbPlayOnce() {
+  if (vbHasPlayed || !vbCtx) return;
+  vbHasPlayed = true;
+  if (vbReducedMotion) {
+    vbDrawFrame(VB_TOTAL_FRAMES - 1, true);
+    return;
+  }
+  const start = performance.now();
+  function step(now) {
+    const elapsed = now - start;
+    const t = Math.min(1, elapsed / VB_DURATION_MS);
+    const frameIdx = Math.min(VB_TOTAL_FRAMES - 1, Math.floor(t * VB_TOTAL_FRAMES));
+    vbDrawFrame(frameIdx);
+    if (t < 1) requestAnimationFrame(step);
+    else vbDrawFrame(VB_TOTAL_FRAMES - 1, true);
+  }
+  requestAnimationFrame(step);
 }
 
-const vbReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-if (vbCanvas) {
+if (vbCanvas && vbSection) {
   vbSizeCanvas();
   window.addEventListener('resize', vbSizeCanvas);
-  if (!vbReducedMotion) {
-    window.addEventListener('scroll', vbOnScroll, { passive: true });
-  }
   if ('requestIdleCallback' in window) requestIdleCallback(vbPreload, { timeout: 1200 });
   else setTimeout(vbPreload, 300);
+
+  const vbPlayObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.4) {
+        if (vbAllLoaded) {
+          vbPlayOnce();
+          vbPlayObserver.unobserve(entry.target);
+        } else {
+          const waitInterval = setInterval(() => {
+            if (vbAllLoaded) {
+              clearInterval(waitInterval);
+              vbPlayOnce();
+              vbPlayObserver.unobserve(entry.target);
+            }
+          }, 150);
+          setTimeout(() => clearInterval(waitInterval), 15000);
+        }
+      }
+    });
+  }, { threshold: 0.4 });
+  vbPlayObserver.observe(vbSection);
 }
 
 /* ─── PICK ME UP TOWER ANIMATION ─── */
