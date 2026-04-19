@@ -136,13 +136,12 @@ html.no-js .reveal { opacity: 1; transform: none; }
   align-items: center;
   background: transparent;
   border-bottom: 1px solid transparent;
-  transition: background 0.3s var(--ease-out), border-color 0.3s var(--ease-out), backdrop-filter 0.3s var(--ease-out);
+  transition: transform 0.35s var(--ease-out), opacity 0.25s var(--ease-out);
 }
-.nav.scrolled {
-  background: rgba(251, 251, 253, 0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom-color: var(--hairline);
+.nav.hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 .nav-inner {
   width: 100%;
@@ -606,8 +605,8 @@ document.documentElement.classList.add('js');
 /* ─── NAV SCROLL STATE ─── */
 const nav = document.getElementById('nav');
 function updateNav() {
-  if (window.scrollY > 40) nav.classList.add('scrolled');
-  else nav.classList.remove('scrolled');
+  if (window.scrollY > 10) nav.classList.add('hidden');
+  else nav.classList.remove('hidden');
 }
 window.addEventListener('scroll', updateNav, { passive: true });
 updateNav();
