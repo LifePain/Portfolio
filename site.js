@@ -56,7 +56,7 @@ const TWEAKS = Object.assign({
   intensity: 'medium',
   warpStreaks: true,
   universeBleed: true,
-  scrollSnap: false
+  scrollSnap: true
 }, (window.TWEAK_DEFAULTS || {}));
 
 function applyTweaksToHtml() {
