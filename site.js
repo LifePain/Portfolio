@@ -56,7 +56,7 @@ const TWEAKS = Object.assign({
   intensity: 'medium',
   warpStreaks: true,
   universeBleed: true,
-  scrollSnap: true
+  scrollSnap: false
 }, (window.TWEAK_DEFAULTS || {}));
 
 function applyTweaksToHtml() {
@@ -75,11 +75,13 @@ applyTweaksToHtml();
     { t: 'Hi,', br: false },
     { t: "I'm", br: false },
     { t: 'Brayden.', br: true, highlight: true },
-    { t: 'I', br: false },
-    { t: 'build', br: false },
+    { t: "I'm", br: false },
+    { t: 'building', br: false },
+    { t: 'the', br: false },
     { t: 'games', br: false },
-    { t: 'with', br: false },
-    { t: 'depth.', br: false }
+    { t: 'I', br: false },
+    { t: 'wish', br: false },
+    { t: 'existed.', br: false }
   ];
   let html = '';
   let i = 0;
