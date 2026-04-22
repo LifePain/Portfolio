@@ -31,7 +31,16 @@ const UNIVERSES = [
     streakHue: 150, streakSat: 95, streakAlpha: 0.55,
     glow: 'rgba(0,255,136,0.4)'
   },
-  { // 3 — Violet Spire (PMU) — deep indigo-violet
+  { // 3 — Blood Arena (Sword Rush) — crimson steel
+    name: 'Arena',
+    bg: [18, 6, 8], bg2: [28, 10, 12],
+    text: [255, 232, 222], textDim: [200, 150, 145],
+    accent: [255, 70, 58],
+    hairline: 'rgba(255,70,58,0.18)', grain: 0.045,
+    streakHue: 8, streakSat: 88, streakAlpha: 0.55,
+    glow: 'rgba(255,70,58,0.42)'
+  },
+  { // 4 — Violet Spire (PMU) — deep indigo-violet
     name: 'Spire',
     bg: [19, 10, 31], bg2: [10, 4, 22],
     text: [241, 229, 255], textDim: [170, 150, 200],
@@ -40,7 +49,7 @@ const UNIVERSES = [
     streakHue: 280, streakSat: 80, streakAlpha: 0.5,
     glow: 'rgba(185,123,255,0.4)'
   },
-  { // 4 — Cosmic Sunset (contact) — warm black with amber
+  { // 5 — Cosmic Sunset (contact) — warm black with amber
     name: 'Sunset',
     bg: [18, 10, 14], bg2: [28, 16, 22],
     text: [255, 237, 220], textDim: [200, 170, 155],
@@ -63,8 +72,7 @@ function applyTweaksToHtml() {
   const h = document.documentElement;
   h.dataset.intensity = TWEAKS.intensity;
   h.dataset.warp = TWEAKS.warpStreaks ? 'on' : 'off';
-  // Snap scroll is enforced for all users; no longer user-togglable.
-  h.classList.add('snap-on');
+  h.classList.toggle('snap-on', !!TWEAKS.scrollSnap);
 }
 applyTweaksToHtml();
 
@@ -668,4 +676,298 @@ document.querySelectorAll('.uni-rail-item').forEach(el => {
   });
 
   try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (_) {}
+})();
+
+/* ─── SWORD RUSH STAGE ─── */
+(function srInit() {
+  const stage = document.getElementById('sr-stage');
+  const heroesWrap = document.getElementById('sr-heroes');
+  const statsWrap = document.getElementById('sr-stats');
+  const heroName = document.getElementById('sr-hero-name');
+  const heroTag = document.getElementById('sr-hero-tag');
+  const heroDesc = document.getElementById('sr-hero-desc');
+  const hudHero = document.getElementById('sr-hud-hero');
+  const hudReach = document.getElementById('sr-hud-reach');
+  const speedVal = document.getElementById('sr-speed-val');
+  const dur = document.getElementById('sr-dur');
+  const durVal = document.getElementById('sr-dur-val');
+  const weaponWrap = document.getElementById('sr-weapon-wrap');
+  const target = document.getElementById('sr-target');
+  const dmgLayer = document.getElementById('sr-dmg-layer');
+  if (!stage || !heroesWrap || !weaponWrap) return;
+
+  const HEROES = [
+    { name: 'Dueler',     diff: '★☆☆', wpn: 'Longsword',    reach: '2.5m', stats: [3,3,3,3,3], desc: 'The teaching hero. Honest, well-rounded. Riposte Stance turns a clean parry into a guaranteed lunge.' },
+    { name: 'Rusher',     diff: '★★☆', wpn: 'Dual Daggers',  reach: '1.4m', stats: [2,1,1,5,5], desc: 'Aerial assassin. Keeps everyone airborne. Wall-kick redirects on command, Blurstep unlocks mixups.' },
+    { name: 'Juggernaut', diff: '★★☆', wpn: 'Warhammer',     reach: '2.8m', stats: [5,4,3,1,2], desc: 'Momentum incarnate. Slowest swings, highest per-hit damage. Brace makes you immovable.' },
+    { name: 'Polearm',    diff: '★★★', wpn: 'Spear',         reach: '3.8m', stats: [3,2,5,3,3], desc: 'Space control. Punishes whiffs. Low Sweep knocks down — no Landing i-frames.' },
+    { name: 'Grappler',   diff: '★★★', wpn: 'Chain & Hook',  reach: '2.3m', stats: [2,3,2,3,3], desc: 'Arena-shaper. Hook Grab, Ground Anchor, Maelstrom — a walking gravity well.' },
+    { name: 'Speerow',    diff: '★★★', wpn: 'Gauntlets',     reach: '1.2m', stats: [2,2,1,5,5], desc: 'Grounded rushdown boxer. Slip Step cancels whiffs. Keeps kit even with broken "weapon".' }
+  ];
+  const STAT_LABELS = ['ATK','DEF','RNG','SPD','MOV'];
+
+  // Weapon SVGs per hero (drawn bottom-up, hilt near bottom, blade up)
+  const WEAPONS = {
+    Dueler: `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax meet">
+      <polygon points="96,180 104,180 108,20 100,4 92,20" fill="#FFE8DE"/>
+      <rect x="78" y="178" width="44" height="9" fill="#c8844e"/>
+      <rect x="94" y="187" width="12" height="40" fill="#3a1a1e"/>
+      <rect x="91" y="226" width="18" height="10" rx="2" fill="#c8844e"/>
+      <rect x="72" y="230" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="106" y="230" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    Rusher: `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax meet">
+      <polygon points="64,180 72,180 76,80 68,64 60,80" fill="#FFE8DE"/>
+      <rect x="56" y="178" width="24" height="7" fill="#c8844e"/>
+      <rect x="64" y="184" width="8" height="28" fill="#2a1014"/>
+      <polygon points="128,180 136,180 140,80 132,64 124,80" fill="#FFE8DE"/>
+      <rect x="120" y="178" width="24" height="7" fill="#c8844e"/>
+      <rect x="128" y="184" width="8" height="28" fill="#2a1014"/>
+      <rect x="52" y="214" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="126" y="214" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    Juggernaut: `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax meet">
+      <rect x="94" y="80" width="12" height="140" fill="#3a1a1e"/>
+      <rect x="60" y="30" width="80" height="56" rx="4" fill="#7a5a38" stroke="#3a1a1e" stroke-width="3"/>
+      <rect x="66" y="38" width="68" height="8" fill="#c8844e"/>
+      <rect x="66" y="72" width="68" height="8" fill="#c8844e"/>
+      <circle cx="100" cy="58" r="8" fill="#8a1f1a"/>
+      <rect x="72" y="226" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="106" y="226" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    Polearm: `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax meet">
+      <rect x="97" y="40" width="6" height="200" fill="#6a4028"/>
+      <polygon points="92,60 108,60 115,0 100,-14 85,0" fill="#FFE8DE" stroke="#8a1f1a" stroke-width="0.8"/>
+      <rect x="88" y="58" width="24" height="4" fill="#c8844e"/>
+      <rect x="72" y="238" width="22" height="26" rx="6" fill="#2a1014"/>
+      <rect x="106" y="218" width="22" height="30" rx="6" fill="#2a1014"/>
+    </svg>`,
+    Grappler: `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax meet">
+      <g stroke="#8a6040" stroke-width="5" fill="none">
+        <circle cx="100" cy="60" r="7"/><circle cx="100" cy="78" r="7"/><circle cx="100" cy="96" r="7"/>
+        <circle cx="100" cy="114" r="7"/><circle cx="100" cy="132" r="7"/><circle cx="100" cy="150" r="7"/>
+        <circle cx="100" cy="168" r="7"/><circle cx="100" cy="186" r="7"/>
+      </g>
+      <path d="M 100 30 Q 120 20 130 10 Q 138 2 132 -8 Q 125 -16 115 -10" fill="none" stroke="#c8844e" stroke-width="7" stroke-linecap="round"/>
+      <path d="M 115 -10 L 110 0" stroke="#c8844e" stroke-width="4" stroke-linecap="round"/>
+      <rect x="78" y="200" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="102" y="200" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    Speerow: `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax meet">
+      <rect x="56" y="140" width="36" height="50" rx="8" fill="#3a1a1e" stroke="#c8844e" stroke-width="2"/>
+      <rect x="58" y="148" width="32" height="4" fill="#c8844e"/>
+      <rect x="58" y="158" width="32" height="4" fill="#c8844e"/>
+      <circle cx="74" cy="176" r="3" fill="#FF463A"/>
+      <rect x="108" y="140" width="36" height="50" rx="8" fill="#3a1a1e" stroke="#c8844e" stroke-width="2"/>
+      <rect x="110" y="148" width="32" height="4" fill="#c8844e"/>
+      <rect x="110" y="158" width="32" height="4" fill="#c8844e"/>
+      <circle cx="126" cy="176" r="3" fill="#FF463A"/>
+      <rect x="56" y="188" width="36" height="30" rx="6" fill="#2a1014"/>
+      <rect x="108" y="188" width="36" height="30" rx="6" fill="#2a1014"/>
+    </svg>`
+  };
+
+  let active = 0;
+  let durability = 100;
+
+  function renderChips() {
+    heroesWrap.innerHTML = HEROES.map((h, i) =>
+      `<button class="sr-hero-chip${i===active?' active':''}" data-hero="${i}" role="tab" aria-selected="${i===active}">${h.name}<span class="diff">${h.diff}</span></button>`
+    ).join('');
+  }
+  function renderStats() {
+    const h = HEROES[active];
+    statsWrap.innerHTML = h.stats.map((v, i) =>
+      `<div class="sr-stat"><div class="lbl">${STAT_LABELS[i]}</div><div class="bars">${
+        [1,2,3,4,5].map(n => `<i class="${n<=v?'on':''}"></i>`).join('')
+      }</div></div>`
+    ).join('');
+  }
+  function selectHero(i, opts = {}) {
+    active = i;
+    const h = HEROES[i];
+    heroName.textContent = h.name;
+    heroTag.textContent = `${h.wpn.toUpperCase()} · ${h.diff}`;
+    heroDesc.textContent = h.desc;
+    hudHero.textContent = h.name.toUpperCase();
+    hudReach.textContent = h.reach;
+    weaponWrap.innerHTML = WEAPONS[h.name] || WEAPONS.Dueler;
+    renderChips();
+    renderStats();
+    if (opts.scroll) {
+      stage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  heroesWrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sr-hero-chip');
+    if (!btn) return;
+    selectHero(parseInt(btn.dataset.hero, 10), { scroll: true });
+  });
+
+  /* ── Swing engine (mouse/drag/release → velocity-based swing) ── */
+  let idleAngle = 10;
+  let currentAngle = idleAngle;
+  let targetAngle = idleAngle;
+  let swinging = false;
+  let history = [];
+  let downX = 0, downY = 0;
+
+  function setWeaponAngle(deg) {
+    weaponWrap.style.transform = `translate(-50%, 0) rotate(${deg}deg)`;
+  }
+  setWeaponAngle(idleAngle);
+
+  function stageRect() { return stage.getBoundingClientRect(); }
+
+  function sampleVelocity() {
+    if (history.length < 2) return { speed: 0, dir: 0 };
+    const a = history[0], b = history[history.length - 1];
+    const dt = Math.max(16, b.t - a.t);
+    const vx = (b.x - a.x) / dt * 1000;
+    const vy = (b.y - a.y) / dt * 1000;
+    return { speed: Math.hypot(vx, vy), dir: Math.atan2(vx, -vy) * 180 / Math.PI };
+  }
+
+  function doSwing(angle, power, hitX, hitY) {
+    if (swinging) return;
+    swinging = true;
+    stage.classList.add('swinging');
+    stage.classList.add('used');
+    const clamped = Math.max(-130, Math.min(130, angle));
+    const overshoot = clamped + Math.sign(clamped || 1) * (14 + power * 22);
+    const startAng = currentAngle;
+    const dur = 240 + (1 - power) * 260;
+    const startT = performance.now();
+    (function anim(now) {
+      const t = Math.min(1, (now - startT) / dur);
+      const eased = t < 0.55
+        ? Math.pow(t / 0.55, 2)
+        : 1 + Math.sin((t - 0.55) / 0.45 * Math.PI) * -0.18;
+      const a = startAng + (overshoot - startAng) * eased;
+      currentAngle = a;
+      setWeaponAngle(a);
+      if (t < 1) requestAnimationFrame(anim);
+      else {
+        currentAngle = idleAngle;
+        setWeaponAngle(idleAngle);
+        setTimeout(() => {
+          stage.classList.remove('swinging');
+          swinging = false;
+        }, 80);
+      }
+    })(performance.now());
+
+    // Durability tick
+    const cost = Math.max(2, Math.round(power * 10));
+    durability = Math.max(0, durability - cost);
+    dur.style.width = durability + '%';
+    durVal.textContent = durability;
+    if (durability <= 0) {
+      setTimeout(() => { durability = 100; dur.style.width = '100%'; durVal.textContent = 100; }, 700);
+    }
+
+    // hit detection mid-swing
+    setTimeout(() => showHit(angle, power, hitX, hitY), dur * 0.45);
+  }
+
+  function showHit(angle, power, hitX, hitY) {
+    const r = stageRect();
+    const tRect = target.getBoundingClientRect();
+    // Any swing with meaningful power counts as a hit against the center dummy
+    if (power < 0.08) return;
+    // Hero stat influence
+    const h = HEROES[active];
+    const atkBoost = 1 + (h.stats[0] - 3) * 0.12;
+    const base = Math.floor((16 + power * 70) * atkBoost);
+    const crit = power > 0.72 || (Math.random() < 0.14 + power * 0.15 && power > 0.35);
+    const dmg = crit ? Math.floor(base * 1.7) : base;
+
+    target.style.setProperty('--hit-x', (Math.sin(angle * Math.PI / 180) * 16) + 'px');
+    target.style.setProperty('--hit-y', (-Math.cos(angle * Math.PI / 180) * 12) + 'px');
+    target.style.setProperty('--hit-r', (angle * 0.08) + 'deg');
+    stage.classList.remove('hit'); void stage.offsetWidth; stage.classList.add('hit');
+
+    // Floating damage number
+    if (dmgLayer) {
+      const el = document.createElement('div');
+      el.className = 'sr-dmg' + (crit ? ' crit' : '');
+      const tx = tRect.left + tRect.width / 2 - r.left + (Math.random() - 0.5) * 36;
+      const ty = tRect.top + tRect.height * 0.28 - r.top + (Math.random() - 0.5) * 16;
+      el.style.left = tx + 'px';
+      el.style.top = ty + 'px';
+      el.innerHTML = crit ? `${dmg}<span class="crit-tag">CRIT</span>` : `${dmg}`;
+      dmgLayer.appendChild(el);
+      setTimeout(() => el.remove(), 950);
+    }
+  }
+
+  /* Pointer events */
+  stage.addEventListener('pointermove', (e) => {
+    const r = stageRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height * 0.85;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    const ang = Math.max(-120, Math.min(120, Math.atan2(dx, -dy) * 180 / Math.PI));
+    if (!swinging) {
+      targetAngle = ang * 0.65;
+      currentAngle = targetAngle;
+      setWeaponAngle(targetAngle);
+    }
+    history.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+    while (history.length > 8) history.shift();
+    if (speedVal) {
+      const { speed } = sampleVelocity();
+      speedVal.textContent = (speed / 1000).toFixed(1);
+    }
+  });
+
+  stage.addEventListener('pointerdown', (e) => {
+    try { stage.setPointerCapture(e.pointerId); } catch {}
+    stage.classList.add('holding');
+    downX = e.clientX; downY = e.clientY;
+    history = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+  });
+
+  stage.addEventListener('pointerup', (e) => {
+    stage.classList.remove('holding');
+    try { stage.releasePointerCapture(e.pointerId); } catch {}
+    const { speed, dir } = sampleVelocity();
+    const dragDx = e.clientX - downX;
+    const dragDy = e.clientY - downY;
+    const dragDist = Math.hypot(dragDx, dragDy);
+    if (dragDist < 16 && speed < 180) return; // a tap — ignore
+    const useDrag = dragDist > 45;
+    const swingDir = useDrag ? Math.atan2(dragDx, -dragDy) * 180 / Math.PI : dir;
+    const power = Math.min(1, (speed / 2400) * 0.55 + (dragDist / 380) * 0.45);
+    doSwing(swingDir, Math.max(0.15, power), e.clientX, e.clientY);
+  });
+
+  stage.addEventListener('pointerleave', () => {
+    stage.classList.remove('holding');
+    if (!swinging) {
+      targetAngle = idleAngle;
+      currentAngle = idleAngle;
+      setWeaponAngle(idleAngle);
+    }
+  });
+
+  // Auto-demo swing on first reveal
+  const srObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && e.intersectionRatio >= 0.35) {
+        setTimeout(() => {
+          if (!swinging) doSwing(45, 0.55, 0, 0);
+        }, 900);
+        setTimeout(() => {
+          if (!swinging) doSwing(-60, 0.75, 0, 0);
+        }, 2000);
+        srObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.35 });
+  srObs.observe(stage);
+
+  selectHero(0);
 })();
