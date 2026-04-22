@@ -1119,6 +1119,317 @@ html[data-intensity="low"] .c-orb { filter: blur(80px); opacity: 0.35 !important
 html[data-intensity="high"] #warp-canvas { opacity: 0.95; }
 
 html[data-warp="off"] #warp-canvas { display: none; }
+
+/* ═══════════ SWORD RUSH ═══════════ */
+.sr-section {
+  min-height: 100vh;
+  position: relative;
+  color: #FFE8DE;
+  overflow: hidden;
+}
+.sr-section .accent { color: #FF463A; }
+.sr-section .showcase-grid { grid-template-columns: 1fr 1.05fr; align-items: center; }
+
+/* Arena floor / spotlight backdrop for this section only */
+.sr-arena-bg {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 75%, rgba(255,70,58,0.18), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 20%, rgba(255,120,100,0.06), transparent 70%);
+}
+.sr-arena-bg::before {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(90deg, rgba(255,70,58,0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,70,58,0.04) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%);
+  opacity: 0.6;
+}
+
+/* Dueling stage on the right */
+.sr-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(255,70,58,0.2), transparent 70%),
+    linear-gradient(180deg, #0a0203 0%, #180508 100%);
+  border: 1px solid rgba(255,70,58,0.28);
+  border-radius: 16px;
+  overflow: hidden;
+  user-select: none;
+}
+.sr-stage::before {
+  /* horizon line */
+  content: ''; position: absolute;
+  left: 0; right: 0; bottom: 28%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,70,58,0.6), transparent);
+  box-shadow: 0 0 12px rgba(255,70,58,0.5);
+}
+.sr-stage::after {
+  /* floor grid */
+  content: ''; position: absolute;
+  left: 0; right: 0; bottom: 0; top: 72%;
+  background-image:
+    linear-gradient(90deg, rgba(255,70,58,0.18) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,70,58,0.18) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: perspective(300px) rotateX(60deg);
+  transform-origin: top center;
+  mask-image: linear-gradient(180deg, black, transparent);
+  -webkit-mask-image: linear-gradient(180deg, black, transparent);
+}
+
+/* First-person hands & weapon (legacy markup — superseded by .sr-weapon-wrap) */
+.sr-hands { display: none; }
+
+/* First-person weapon (dynamic rotation) */
+.sr-weapon-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: -6%;
+  width: 40%;
+  height: 78%;
+  transform-origin: 50% 92%;
+  transform: translate(-50%, 0) rotate(10deg);
+  transition: transform 0.12s linear;
+  pointer-events: none;
+  filter: drop-shadow(0 -8px 20px rgba(255,70,58,0.35));
+  will-change: transform;
+  z-index: 3;
+}
+.sr-stage.swinging .sr-weapon-wrap { transition: none; }
+.sr-weapon-wrap svg { width: 100%; height: 100%; overflow: visible; }
+
+/* Training dummy */
+.sr-target {
+  position: absolute;
+  left: 50%; top: 40%;
+  width: 22%; aspect-ratio: 9/14;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+  transition: filter 0.2s, transform 0.2s var(--ease-out);
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6));
+}
+.sr-target svg { width: 100%; height: 100%; }
+.sr-stage.hit .sr-target {
+  animation: srTargetHit 0.55s ease-out;
+}
+@keyframes srTargetHit {
+  0%   { transform: translate(-50%, -50%) rotate(0); filter: drop-shadow(0 0 18px #FF463A); }
+  30%  { transform: translate(calc(-50% + var(--hit-x, 14px)), calc(-50% + var(--hit-y, -6px))) rotate(var(--hit-r, 6deg)); }
+  100% { transform: translate(-50%, -50%) rotate(0); filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6)); }
+}
+
+/* Floating damage numbers */
+.sr-dmg-layer {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.sr-dmg {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2rem;
+  color: #FFE8DE;
+  text-shadow:
+    0 0 12px #FF463A,
+    0 0 24px rgba(255, 70, 58, 0.8),
+    0 2px 4px rgba(0,0,0,0.9);
+  letter-spacing: -0.02em;
+  animation: srDmgFloat 0.95s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+.sr-dmg.crit {
+  color: #FFD24A;
+  font-size: 2.6rem;
+  text-shadow:
+    0 0 14px #FFD24A,
+    0 0 28px rgba(255, 210, 74, 0.9),
+    0 2px 4px rgba(0,0,0,0.9);
+}
+.sr-dmg .crit-tag {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.3em;
+  color: #FFD24A;
+  margin-top: 2px;
+  text-align: center;
+}
+@keyframes srDmgFloat {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  20%  { transform: translate(-50%, -70%) scale(1.2); opacity: 1; }
+  55%  { transform: translate(-50%, -90%) scale(1);   opacity: 1; }
+  100% { transform: translate(-50%, -140%) scale(0.85); opacity: 0; }
+}
+
+/* Stage interaction cursors + hint */
+.sr-stage { cursor: crosshair; touch-action: none; }
+.sr-stage.holding { cursor: grabbing; }
+.sr-hint {
+  position: absolute;
+  left: 50%; bottom: 1rem;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  color: rgba(255,232,222,0.45);
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 4;
+  transition: opacity 0.3s;
+}
+.sr-stage.holding .sr-hint,
+.sr-stage.used .sr-hint { opacity: 0; }
+
+/* Crosshair + indicators overlay */
+.sr-hud {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,232,222,0.8);
+}
+.sr-crosshair {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 18px; height: 18px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,70,58,0.7);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255,70,58,0.6);
+}
+.sr-crosshair::before, .sr-crosshair::after {
+  content: ''; position: absolute;
+  background: rgba(255,70,58,0.7);
+}
+.sr-crosshair::before { left: 50%; top: -10px; width: 1px; height: 8px; transform: translateX(-50%); }
+.sr-crosshair::after  { left: -10px; top: 50%; width: 8px; height: 1px; transform: translateY(-50%); }
+
+.sr-hud-tl { position: absolute; top: 1rem; left: 1rem; display: flex; flex-direction: column; gap: 0.25rem; text-shadow: 0 0 8px #000; }
+.sr-hud-tr { position: absolute; top: 1rem; right: 1rem; text-align: right; }
+.sr-hud-bl { position: absolute; bottom: 1rem; left: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+.sr-hud .val { color: #FF463A; }
+.sr-meter { width: 90px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; overflow: hidden; }
+.sr-meter span { display: block; height: 100%; background: linear-gradient(90deg, #FF463A, #FF9D6E); transition: width 0.4s var(--ease-out); box-shadow: 0 0 8px #FF463A; }
+
+/* Hero pager chips */
+.sr-heroes {
+  display: flex; gap: 0.4rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+.sr-hero-chip {
+  padding: 0.45rem 0.75rem;
+  border-radius: 100px;
+  background: rgba(255,70,58,0.06);
+  border: 1px solid rgba(255,70,58,0.25);
+  color: rgba(255,232,222,0.85);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s, border-color 0.25s, color 0.25s, transform 0.25s var(--ease-out);
+}
+.sr-hero-chip:hover { background: rgba(255,70,58,0.12); transform: translateY(-1px); }
+.sr-hero-chip.active {
+  background: rgba(255,70,58,0.22);
+  border-color: #FF463A;
+  color: #FFF;
+  box-shadow: 0 0 16px rgba(255,70,58,0.35);
+}
+.sr-hero-chip .diff { opacity: 0.6; margin-left: 0.35em; }
+
+/* Drag-to-swing hint replacing old direction buttons */
+.sr-drag-hint {
+  margin-top: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: rgba(255,232,222,0.65);
+}
+.sr-drag-hint .kbd {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 4px;
+  border: 1px solid rgba(255,70,58,0.4);
+  border-radius: 4px;
+  color: #FF463A;
+  background: rgba(255,70,58,0.08);
+  font-weight: 600;
+}
+
+/* Hero portrait silhouette + stats card */
+.sr-hero-card {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  background: rgba(20, 6, 8, 0.55);
+  border: 1px solid rgba(255,70,58,0.22);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+.sr-hero-card-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.6rem;
+}
+.sr-hero-card-head h4 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; color: #FFF; }
+.sr-hero-card-head .tag {
+  font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.2em;
+  color: #FF463A; text-transform: uppercase;
+}
+.sr-hero-card p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: rgba(255,232,222,0.7);
+  margin-bottom: 0.75rem;
+}
+.sr-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+.sr-stat { text-align: center; }
+.sr-stat .lbl {
+  font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(255,232,222,0.45);
+  margin-bottom: 0.25rem;
+}
+.sr-stat .bars { display: flex; gap: 2px; justify-content: center; }
+.sr-stat .bars i {
+  display: block; width: 5px; height: 12px;
+  background: rgba(255,70,58,0.15);
+  border-radius: 1px;
+  transition: background 0.3s var(--ease-out), box-shadow 0.3s;
+}
+.sr-stat .bars i.on {
+  background: #FF463A;
+  box-shadow: 0 0 6px rgba(255,70,58,0.8);
+}
+
+/* Scaffold */
+.sr-scaffold {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,232,222,0.6);
+  text-transform: uppercase;
+  background: rgba(255,70,58,0.08);
+  border: 1px solid rgba(255,70,58,0.25);
+  border-radius: 4px;
+}
+
+@media (max-width: 900px) {
+  .sr-section .showcase-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .sr-stage { order: -1; max-height: 55vh; }
+}
 </style>
 </head>
 <body>
@@ -1135,7 +1446,9 @@ document.documentElement.classList.add('js');
     <a href="#hero" class="nav-brand"><span class="nav-sigil" aria-hidden="true"></span>Brayden</a>
     <div class="nav-links">
       <a href="#about">About</a>
-      <a href="#void-bastion">Work</a>
+      <a href="#void-bastion">Void</a>
+      <a href="#sword-rush">Sword</a>
+      <a href="#pick-me-up">Spire</a>
       <a href="#contact">Contact</a>
       <span class="nav-status"><span class="dot"></span>Open to work</span>
     </div>
@@ -1146,6 +1459,7 @@ document.documentElement.classList.add('js');
   <div class="uni-rail-item" data-target="#hero"><span class="label">Dawn</span><span class="tick"></span></div>
   <div class="uni-rail-item" data-target="#about"><span class="label">Method</span><span class="tick"></span></div>
   <div class="uni-rail-item" data-target="#void-bastion"><span class="label">Void</span><span class="tick"></span></div>
+  <div class="uni-rail-item" data-target="#sword-rush"><span class="label">Arena</span><span class="tick"></span></div>
   <div class="uni-rail-item" data-target="#pick-me-up"><span class="label">Spire</span><span class="tick"></span></div>
   <div class="uni-rail-item" data-target="#contact"><span class="label">Sunset</span><span class="tick"></span></div>
 </div>
@@ -1162,13 +1476,13 @@ document.documentElement.classList.add('js');
       <div class="hero-mark" style="top:28%;left:4%;"><span class="tick"></span>STUDIO//01</div>
     </div>
 
-    <div class="eyebrow">01 · Solo Dev · APAC</div>
-    <h1 id="hero-title" aria-label="Hi, I'm Brayden. I'm building the games I wish existed.">
+    <div class="eyebrow">01 · Solo Indie Gamedev</div>
+    <h1 id="hero-title" aria-label="Hi, I'm Brayden. I build games with depth.">
       <!-- filled by JS -->
     </h1>
-    <p class="sub">Fantasy and sci-fi shaped how I think. DOTA taught me a well-tuned mechanic is a kind of poetry. I'm a self-taught solo dev from APAC, working on two systems-heavy games — a 20,000-unit horde-defense RTS and a permadeath tower-climb manager. Equal parts simulation, feel, and "let me try one more thing." Open to studio roles and collaborations.</p>
+    <p class="sub">Solo indie developer working on two systems-driven games: a co-op horde-defense RTS with a 20,000-unit alien horde, and a permadeath tower-climbing manager with AI-personality heroes. Available for contract and full-time game/engine engineering work.</p>
     <div class="hero-ctas">
-      <a href="/cdn-cgi/l/email-protection#0f6d7d6e766b6a614f7f6063666c6e7d7f66607c21616a7b" class="btn btn-primary">Contact me →</a>
+      <a href="/cdn-cgi/l/email-protection#a5c7d7c4dcc1c0cbe5d5cac9ccc6c4d7d5cccad68bcbc0d1" class="btn btn-primary">Contact me →</a>
       <a href="https://github.com/LifePain" target="_blank" rel="noopener" class="btn btn-secondary">GitHub</a>
     </div>
     <div class="scroll-indicator" aria-hidden="true">Scroll · Enter the worlds</div>
@@ -1176,21 +1490,21 @@ document.documentElement.classList.add('js');
 
   <section class="about" id="about" data-universe="1">
     <div class="container">
-      <div class="eyebrow reveal">02 · The long version</div>
-      <h2 class="reveal">I got here by reading too much and losing too much MMR.</h2>
-      <p class="sub reveal">Short version: the games I wanted didn't exist, so I started making them. Long version: fantasy and sci-fi had me asking <em>"why doesn't a game ever feel like this?"</em> DOTA showed me how much weight a well-tuned mechanic can carry. A couple of years into teaching myself Unity, and I'm still chasing the overlap.</p>
+      <div class="eyebrow reveal">02 · About</div>
+      <h2 class="reveal">A solo dev, not a solo hobbyist.</h2>
+      <p class="sub reveal">I write design docs before I write code. Every system I ship has a spec, a test plan, and a reason to exist.</p>
       <div class="about-grid">
         <div class="about-col reveal"><span class="idx">01</span>
-          <h3>What I chase</h3>
-          <p>Feel before anything. A game can have the best simulation in the world and still be dead if the moment-to-moment isn't alive. I want fantasy-novel worlds running on DOTA-grade mechanics — where the systems <em>are</em> the story.</p>
+          <h3>Focus</h3>
+          <p>Simulation-driven gameplay. Large-scale AI orchestration. Emergent narrative systems. Procedural worlds you can replay.</p>
         </div>
         <div class="about-col reveal"><span class="idx">02</span>
-          <h3>What I use</h3>
-          <p>Unity 6, C#, DOTS/ECS, Netcode for Entities, Burst. Comfortable in shaders, procedural generation, and keeping thousands of units happy across the network. Self-taught, rigorously tested, unafraid of the profiler.</p>
+          <h3>Stack</h3>
+          <p>Unity 6 · C# · DOTS/ECS · Netcode for Entities · Unity.Mathematics · Burst. Comfortable with shader work, procedural generation, and network optimization for thousands of units.</p>
         </div>
         <div class="about-col reveal"><span class="idx">03</span>
-          <h3>How I work</h3>
-          <p>Spec first, vibe second, test early. I write the design before I write the code, ship one system at a time, and make sure it actually <em>feels</em> good before moving on. If it's not fun solo at my desk, it won't be fun later.</p>
+          <h3>Method</h3>
+          <p>Spec-first design. Vertical slices. Test-driven core systems. I ship one feature module at a time and make sure it holds before moving on.</p>
         </div>
       </div>
     </div>
@@ -1217,7 +1531,7 @@ document.documentElement.classList.add('js');
           <li>8-state horde AI with evolving nests and cascading aggression.</li>
           <li>4-player co-op. Separate bases. Shared vision. No PvP.</li>
         </ul>
-        <a href="void-bastion/" class="btn btn-secondary reveal">Visit Void Bastion site →</a>
+        <a href="#" class="btn btn-secondary reveal" data-vb-site aria-disabled="true" onclick="event.preventDefault(); return false;">Visit Void Bastion site →</a>
       </div>
       <div class="vb-canvas-wrap reveal" id="vb-wrap" role="img" aria-label="Scroll-driven animation showing an alien creature evolving through four rank stages.">
         <canvas id="vb-canvas" aria-hidden="true"></canvas>
@@ -1244,7 +1558,84 @@ document.documentElement.classList.add('js');
     </div>
   </section>
 
-  <section class="showcase pmu-section full-bleed" id="pick-me-up" data-universe="3">
+  <section class="showcase sr-section full-bleed" id="sword-rush" data-universe="3">
+    <div class="sr-arena-bg" aria-hidden="true"></div>
+    <div class="showcase-grid">
+      <div class="showcase-text">
+        <div class="eyebrow reveal"><span class="accent">Project 02</span> · Sword Rush</div>
+        <h2 class="reveal">Every swing <span class="accent">carries weight</span>.</h2>
+        <p class="sub reveal">Sword Rush is a first-person, physics-driven melee brawler. 3–4 heroes, FFA stocks, no magic — just momentum, mass, and the direction you swung. Inspired by the webtoon <em>Double Click</em>.</p>
+        <dl class="showcase-meta reveal">
+          <dt>Role</dt><dd>Solo Dev</dd>
+          <dt>Genre</dt><dd>First-Person Physics Melee</dd>
+          <dt>Engine</dt><dd>Unity 6 · NGO + Steam P2P</dd>
+          <dt>Status</dt><dd>Design Complete · Combat Core</dd>
+        </dl>
+        <ul class="showcase-features reveal">
+          <li>Continuous 360° directional swings; launch = swing vector.</li>
+          <li>Parry = swing opposite within 20°. No damage. No durability cost.</li>
+          <li>6 heroes, each with a unique broken-weapon fallback.</li>
+        </ul>
+
+        <div class="sr-heroes reveal" id="sr-heroes" role="tablist" aria-label="Sword Rush heroes"></div>
+        <div class="sr-hero-card reveal" id="sr-hero-card" role="tabpanel">
+          <div class="sr-hero-card-head">
+            <h4 id="sr-hero-name">Dueler</h4>
+            <span class="tag" id="sr-hero-tag">LONGSWORD · ★☆☆</span>
+          </div>
+          <p id="sr-hero-desc">The teaching hero. Honest, well-rounded. Riposte Stance turns a clean parry into a guaranteed lunge.</p>
+          <div class="sr-stats" id="sr-stats"></div>
+        </div>
+
+        <div class="sr-drag-hint reveal" aria-hidden="true">
+          <span class="kbd">drag</span> across the arena to swing · flick faster to crit
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <a href="sword-rush/" class="btn btn-secondary reveal">Visit Sword Rush site →</a>
+        </div>
+      </div>
+
+      <div class="sr-stage reveal" id="sr-stage" role="img" aria-label="First-person preview of a directional melee swing">
+        <div class="sr-scaffold">ARENA · TRAINING</div>
+        <div class="sr-hud" aria-hidden="true">
+          <div class="sr-hud-tl">
+            <div>HERO · <span class="val" id="sr-hud-hero">DUELER</span></div>
+            <div>REACH · <span class="val" id="sr-hud-reach">2.5m</span></div>
+          </div>
+          <div class="sr-hud-tr">
+            <div>SPEED · <span class="val" id="sr-speed-val">0.0</span></div>
+            <div>TICK · <span class="val">60Hz</span></div>
+          </div>
+          <div class="sr-crosshair"></div>
+          <div class="sr-hud-bl">
+            <span>DUR</span>
+            <div class="sr-meter"><span id="sr-dur" style="width: 100%"></span></div>
+            <span class="val" id="sr-dur-val">100</span>
+          </div>
+        </div>
+        <div class="sr-target" id="sr-target">
+          <svg viewBox="0 0 90 140">
+            <ellipse cx="45" cy="134" rx="26" ry="5" fill="rgba(0,0,0,0.5)"/>
+            <rect x="30" y="92" width="30" height="40" rx="4" fill="#3a1a1e" stroke="#8a1f1a" stroke-width="1.5"/>
+            <rect x="34" y="100" width="22" height="3" fill="#c8844e"/>
+            <rect x="34" y="115" width="22" height="3" fill="#c8844e"/>
+            <rect x="26" y="54" width="38" height="44" rx="5" fill="#4a1f22" stroke="#8a1f1a" stroke-width="1.5"/>
+            <circle cx="45" cy="32" r="16" fill="#3a1a1e" stroke="#8a1f1a" stroke-width="1.5"/>
+            <rect x="40" y="26" width="10" height="2" fill="#FF463A"/>
+            <rect x="40" y="32" width="10" height="2" fill="#FF463A"/>
+            <path d="M 38 42 Q 45 48 52 42" stroke="#FF463A" stroke-width="1.5" fill="none"/>
+            <line x1="45" y1="48" x2="45" y2="54" stroke="#8a1f1a" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="sr-weapon-wrap" id="sr-weapon-wrap" aria-hidden="true"></div>
+        <div class="sr-dmg-layer" id="sr-dmg-layer" aria-hidden="true"></div>
+        <div class="sr-hint">drag to swing</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="showcase pmu-section full-bleed" id="pick-me-up" data-universe="4">
     <div class="showcase-grid">
       <div class="showcase-text">
         <div class="eyebrow reveal"><span class="accent">Project 02</span> · Pick Me Up</div>
@@ -1314,7 +1705,7 @@ document.documentElement.classList.add('js');
     </div>
   </section>
 
-  <section class="contact" id="contact" data-universe="4">
+  <section class="contact" id="contact" data-universe="5">
     <div class="contact-orbs" aria-hidden="true">
       <div class="c-orb a"></div>
       <div class="c-orb b"></div>
@@ -1324,10 +1715,10 @@ document.documentElement.classList.add('js');
       <h2 id="contact-title" aria-label="Let's talk."></h2>
       <p class="sub reveal">I'm open to contract work, studio roles, and collaborations on simulation-heavy projects. Fastest way to reach me is email.</p>
       <div class="contact-ctas reveal">
-        <a href="/cdn-cgi/l/email-protection#a7c5d5c6dec3c2c9e7d7c8cbcec4c6d5d7cec8d489c9c2d3" class="btn btn-primary"><span class="__cf_email__" data-cfemail="f19383908895949fb1819e9d9892908381989e82df9f9485">[email&#160;protected]</span></a>
+        <a href="/cdn-cgi/l/email-protection#e28090839b86878ca2928d8e8b818390928b8d91cc8c8796" class="btn btn-primary"><span class="__cf_email__" data-cfemail="6e0c1c0f170a0b002e1e0102070d0f1c1e07011d40000b1a">[email&#160;protected]</span></a>
         <a href="https://github.com/LifePain" target="_blank" rel="noopener" class="btn btn-secondary">github.com/LifePain</a>
       </div>
-      <div class="contact-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a9cbdbc8d0cdccc7e9d9c6c5c0cac8dbd9c0c6da87c7ccdd">[email&#160;protected]</a><span class="cursor"></span></div>
+      <div class="contact-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0d6f7f6c746968634d7d6261646e6c7f7d64627e23636879">[email&#160;protected]</a><span class="cursor"></span></div>
     </div>
   </section>
 </main>
@@ -1337,7 +1728,7 @@ document.documentElement.classList.add('js');
     <div class="footer-brand">Brayden</div>
     <div>Built solo. © 2026.</div>
     <div class="footer-links">
-      <a href="/cdn-cgi/l/email-protection#bcdeceddc5d8d9d2fcccd3d0d5dfddceccd5d3cf92d2d9c8">Email</a>
+      <a href="/cdn-cgi/l/email-protection#187a6a79617c7d7658687774717b796a6871776b36767d6c">Email</a>
       <a href="https://github.com/LifePain" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
@@ -1361,13 +1752,9 @@ document.documentElement.classList.add('js');
     <label>Universe bleed</label>
     <div class="tweaks-switch" data-key="universeBleed"></div>
   </div>
-  <div class="tweaks-row">
-    <label>Scroll snap</label>
-    <div class="tweaks-switch" data-key="scrollSnap"></div>
-  </div>
   <button class="tweaks-btn" id="replay-all">Replay animations</button>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js" defer></script><script src="site.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="site.js"></script>
 </body>
 </html>

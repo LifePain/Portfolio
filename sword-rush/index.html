@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SWORD//RUSH — Physics Melee Brawler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Archivo:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #FF463A;
+    --accent-dim: #FF6E4A;
+    --accent-glow: rgba(255, 70, 58, 0.42);
+    --bg: #0A0305;
+    --bg-elev: #140608;
+    --text: #FFE8DE;
+    --text-muted: rgba(255, 232, 222, 0.6);
+    --border: rgba(255, 70, 58, 0.15);
+    --card-bg: rgba(22, 8, 10, 0.6);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Archivo', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  ::selection { background: var(--accent); color: #FFF; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #0F0406; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent), var(--accent-dim));
+    border-radius: 4px;
+  }
+  h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ═══════════ EMBER BG ═══════════ */
+  #ember-canvas {
+    position: fixed; inset: 0;
+    z-index: 0; opacity: 0.55; pointer-events: none;
+  }
+
+  /* ═══════════ SCROLL PROGRESS ═══════════ */
+  #scroll-progress {
+    position: fixed; top: 0; left: 0;
+    height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+    z-index: 1000;
+    box-shadow: 0 0 10px var(--accent-glow);
+    transition: width 0.05s linear;
+  }
+
+  /* ═══════════ NAV ═══════════ */
+  .navbar {
+    position: fixed; top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 100%; z-index: 100;
+    padding: 1.2rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .navbar.scrolled {
+    top: 1rem; max-width: 820px;
+    background: rgba(22, 8, 10, 0.78);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 0.7rem 1.6rem;
+  }
+  .nav-brand {
+    display: flex; align-items: center; gap: 0.6rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 1.05rem;
+    letter-spacing: 0.1em; color: var(--text);
+  }
+  .nav-logo { width: 28px; height: 28px; }
+  .nav-brand .slash { color: var(--accent); }
+  .nav-links { display: flex; gap: 2rem; align-items: center; }
+  .nav-links a {
+    color: var(--text-muted); text-decoration: none;
+    font-size: 0.85rem; letter-spacing: 0.05em;
+    transition: color 0.2s;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-cta {
+    background: var(--accent); color: #FFF !important;
+    padding: 0.5rem 1rem; border-radius: 100px;
+    font-weight: 600 !important;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+
+  /* ═══════════ HERO ═══════════ */
+  .hero {
+    position: relative; min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 6rem 2rem 4rem;
+    text-align: center; z-index: 2;
+    overflow: hidden;
+  }
+  .hero-orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); opacity: 0.45; pointer-events: none;
+  }
+  .orb-1 { width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    top: -100px; left: -100px;
+  }
+  .orb-2 { width: 400px; height: 400px;
+    background: radial-gradient(circle, #8a1f1a 0%, transparent 70%);
+    bottom: -100px; right: -100px;
+  }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 70, 58, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 70, 58, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    pointer-events: none;
+  }
+  .hero-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; letter-spacing: 0.35em;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: rgba(255, 70, 58, 0.05);
+    position: relative; z-index: 2;
+  }
+  .hero-tag::before {
+    content: ''; display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent); border-radius: 50%;
+    margin-right: 0.6rem;
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse-dot 1.5s infinite;
+  }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero-title {
+    font-size: clamp(2.8rem, 8vw, 6rem);
+    font-weight: 700; line-height: 0.95;
+    margin-bottom: 1.5rem;
+    max-width: 1100px; position: relative; z-index: 2;
+  }
+  .hero-title .accent {
+    color: var(--accent);
+    text-shadow: 0 0 40px var(--accent-glow);
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    color: var(--text-muted);
+    max-width: 640px; margin-bottom: 2.5rem;
+    position: relative; z-index: 2;
+  }
+  .hero-ctas {
+    display: flex; gap: 1rem; flex-wrap: wrap;
+    justify-content: center; position: relative; z-index: 2;
+  }
+  .btn {
+    padding: 0.9rem 1.8rem; border-radius: 100px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600; font-size: 0.95rem;
+    letter-spacing: 0.03em; cursor: pointer;
+    border: none; transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.5rem;
+  }
+  .btn-primary {
+    background: var(--accent); color: #FFF;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 36px var(--accent-glow); }
+  .btn-secondary {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ═══════════ SWING DEMO ═══════════ */
+  .swing-demo {
+    padding: 6rem 2rem;
+    position: relative; z-index: 2;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+  .swing-demo-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1.2fr;
+    gap: 4rem; align-items: center;
+  }
+  .swing-demo h2 {
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    margin-bottom: 1rem;
+  }
+  .swing-demo .accent { color: var(--accent); }
+  .swing-demo p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 1rem; }
+  .swing-stage {
+    width: 100%; aspect-ratio: 4/3;
+    background: linear-gradient(180deg, #1a0608 0%, #0a0305 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px; position: relative;
+    overflow: hidden;
+  }
+  .swing-ground {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 40%;
+    background: linear-gradient(180deg, transparent, rgba(255,70,58,0.1));
+    border-top: 1px solid var(--border);
+  }
+  .swing-horizon {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 30% at center 60%, rgba(255,70,58,0.2), transparent);
+  }
+  .swing-stage { cursor: crosshair; user-select: none; }
+  .swing-stage.holding { cursor: grabbing; }
+  .swing-weapon {
+    position: absolute;
+    left: 50%;
+    bottom: 8%;
+    width: 180px;
+    height: 280px;
+    transform-origin: 50% 90%;
+    transform: translate(-50%, 0) rotate(10deg);
+    transition: transform 0.12s linear;
+    pointer-events: none;
+    will-change: transform;
+    z-index: 3;
+  }
+  .swing-stage.swinging .swing-weapon {
+    transition: none;
+  }
+  .swing-dmg-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .swing-weapon svg { width: 100%; height: 100%; overflow: visible; }
+  .swing-arc { position: absolute; inset: 0; pointer-events: none; }
+  .swing-arc svg { width: 100%; height: 100%; overflow: visible; }
+  .swing-arc path {
+    fill: none; stroke: var(--accent); stroke-width: 3;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 10px var(--accent));
+    opacity: 0;
+  }
+  .swing-stage.swinging .swing-arc path {
+    animation: arcFlash 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+  @keyframes arcFlash {
+    0%   { opacity: 0; stroke-dashoffset: 500; }
+    20%  { opacity: 1; }
+    85%  { opacity: 1; stroke-dashoffset: 0; }
+    100% { opacity: 0; stroke-dashoffset: 0; }
+  }
+  .swing-target {
+    position: absolute;
+    left: 50%; top: 42%;
+    width: 90px; height: 140px;
+    margin-left: -45px; margin-top: -70px;
+    pointer-events: none;
+    transition: transform 0.2s var(--ease-out), filter 0.2s;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  .swing-target svg { width: 100%; height: 100%; }
+  .swing-stage.hit .swing-target {
+    animation: targetHit 0.5s ease-out;
+  }
+  @keyframes targetHit {
+    0%   { transform: translate(0, 0) rotate(0); filter: drop-shadow(0 0 16px #FF463A); }
+    30%  { transform: translate(var(--hit-x, 20px), var(--hit-y, -10px)) rotate(var(--hit-r, 8deg)); }
+    100% { transform: translate(0, 0) rotate(0); filter: drop-shadow(0 0 0 transparent); }
+  }
+  .swing-dmg {
+    position: absolute; left: 0; top: 0;
+    pointer-events: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: #FFE8DE;
+    text-shadow:
+      0 0 12px #FF463A,
+      0 0 24px rgba(255, 70, 58, 0.8),
+      0 2px 4px rgba(0,0,0,0.9);
+    transform: translate(-50%, -50%);
+    animation: dmgFloat 0.95s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+    letter-spacing: -0.02em;
+  }
+  .swing-dmg.crit {
+    color: #FFD24A;
+    font-size: 2.8rem;
+    text-shadow:
+      0 0 14px #FFD24A,
+      0 0 28px rgba(255, 210, 74, 0.9),
+      0 2px 4px rgba(0,0,0,0.9);
+  }
+  .swing-dmg .crit-tag {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: #FFD24A;
+    margin-top: 2px;
+  }
+  @keyframes dmgFloat {
+    0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+    20%  { transform: translate(-50%, -70%) scale(1.2); opacity: 1; }
+    55%  { transform: translate(-50%, -90%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -140%) scale(0.85); opacity: 0; }
+  }
+  .swing-hint {
+    position: absolute; left: 50%; bottom: 1rem;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 0.25em;
+    color: rgba(255,232,222,0.55);
+    text-transform: uppercase;
+    pointer-events: none;
+    text-align: center;
+    transition: opacity 0.3s;
+  }
+  .swing-stage.holding .swing-hint { opacity: 0; }
+  .swing-hint .kbd {
+    display: inline-block;
+    padding: 0 6px;
+    border: 1px solid rgba(255,70,58,0.4);
+    border-radius: 3px;
+    color: var(--accent);
+    margin: 0 2px;
+  }
+  .swing-weapon-label {
+    position: absolute; top: 1rem; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    text-shadow: 0 0 10px var(--accent-glow);
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .swing-speed {
+    position: absolute; top: 1rem; right: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 0.2em;
+    color: rgba(255,232,222,0.7);
+    pointer-events: none;
+  }
+  .swing-speed .val { color: var(--accent); }
+
+  /* ═══════════ SECTIONS ═══════════ */
+  .section {
+    position: relative; z-index: 2;
+    background: var(--bg);
+    padding: 6rem 2rem;
+  }
+  .section-head {
+    max-width: 1100px; margin: 0 auto 3.5rem;
+    text-align: center;
+  }
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.3em;
+    color: var(--accent); margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    font-weight: 700; line-height: 1; margin-bottom: 1rem;
+  }
+  .section-sub {
+    color: var(--text-muted);
+    max-width: 600px; margin: 0 auto;
+    font-size: 1rem;
+  }
+
+  /* ═══════════ HEROES GRID ═══════════ */
+  .heroes-grid {
+    max-width: 1100px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  .hero-card {
+    padding: 1.8rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s;
+    position: relative;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    width: 100%;
+    display: block;
+  }
+  .hero-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 70, 58, 0.4);
+    box-shadow: 0 20px 40px -10px rgba(255,70,58,0.2);
+  }
+  .hero-card.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 20px 40px -10px rgba(255,70,58,0.35);
+  }
+  .hero-card.active .diff { color: #FFE8DE; }
+  .hero-pick {
+    margin-top: 0.9rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed rgba(255,70,58,0.25);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .hero-card:hover .hero-pick,
+  .hero-card.active .hero-pick { opacity: 1; color: var(--accent); }
+  .hero-card .diff {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 0.6rem;
+  }
+  .hero-card h4 { font-size: 1.3rem; margin-bottom: 0.2rem; }
+  .hero-card .wpn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; color: var(--text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+  .hero-card p {
+    color: var(--text-muted);
+    font-size: 0.88rem; line-height: 1.55;
+    margin-bottom: 1rem;
+  }
+  .hero-card .stats-mini {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 0.4rem; padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .hero-card .stat { text-align: center; }
+  .hero-card .stat .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem; letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+  }
+  .hero-card .bars { display: flex; gap: 2px; justify-content: center; }
+  .hero-card .bars i {
+    display: block; width: 5px; height: 12px;
+    background: rgba(255,70,58,0.15);
+    border-radius: 1px;
+  }
+  .hero-card .bars i.on {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  /* ═══════════ RULES ═══════════ */
+  .rules-grid {
+    max-width: 1100px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  .rule-card {
+    padding: 2rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+  .rule-card .num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2.5rem; font-weight: 700;
+    color: var(--accent);
+    line-height: 1; margin-bottom: 0.6rem;
+    text-shadow: 0 0 20px var(--accent-glow);
+  }
+  .rule-card h4 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+  .rule-card p {
+    color: var(--text-muted);
+    font-size: 0.9rem; line-height: 1.55;
+  }
+
+  /* ═══════════ CTA ═══════════ */
+  .cta {
+    position: relative; z-index: 2;
+    padding: 6rem 2rem; text-align: center;
+  }
+  .cta-inner {
+    max-width: 720px; margin: 0 auto;
+    padding: 3.5rem 2rem;
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    background:
+      radial-gradient(ellipse at top, rgba(255, 70, 58, 0.12), transparent 60%),
+      var(--card-bg);
+    backdrop-filter: blur(20px);
+  }
+  .cta h2 {
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    margin-bottom: 1rem;
+  }
+  .cta p { color: var(--text-muted); margin-bottom: 1.8rem; }
+
+  /* ═══════════ FOOTER ═══════════ */
+  .footer {
+    position: relative; z-index: 2;
+    padding: 2.5rem 2rem; border-top: 1px solid var(--border);
+  }
+  .footer-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; color: var(--text-muted);
+    letter-spacing: 0.1em;
+  }
+  .footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+  .footer a:hover { color: var(--accent); }
+  .footer-brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; color: var(--text); font-size: 0.9rem;
+  }
+  .footer-brand .slash { color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .swing-demo-inner { grid-template-columns: 1fr; gap: 2rem; }
+    .heroes-grid { grid-template-columns: 1fr; }
+    .rules-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .nav-links a:not(.nav-cta) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="ember-canvas"></canvas>
+<div id="scroll-progress"></div>
+
+<nav class="navbar" id="navbar">
+  <a href="Portfolio.html" class="nav-brand">
+    <svg class="nav-logo" viewBox="0 0 32 32" fill="none">
+      <path d="M16 2 L19 13 L30 16 L19 19 L16 30 L13 19 L2 16 L13 13 Z" stroke="#FF463A" stroke-width="1.6" fill="rgba(255,70,58,0.1)"/>
+      <circle cx="16" cy="16" r="2" fill="#FF463A"/>
+    </svg>
+    <span>SWORD<span class="slash">//</span>RUSH</span>
+  </a>
+  <div class="nav-links">
+    <a href="#demo">SWING</a>
+    <a href="#heroes">HEROES</a>
+    <a href="#rules">RULES</a>
+    <a href="Portfolio.html" class="nav-cta">← PORTFOLIO</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-orb orb-1"></div>
+  <div class="hero-orb orb-2"></div>
+  <div class="grid-overlay"></div>
+  <div class="hero-tag">CLOSED ALPHA // COMBAT CORE BUILDING</div>
+  <h1 class="hero-title">EVERY SWING<br><span class="accent">CARRIES WEIGHT.</span></h1>
+  <p class="hero-sub">First-person, physics-driven melee. 3–4 players. FFA stocks. No magic — just momentum, mass, and the direction you swung. Inspired by the webtoon <em>Double Click</em>.</p>
+  <div class="hero-ctas">
+    <a href="#demo" class="btn btn-primary">TRY A SWING →</a>
+    <a href="#heroes" class="btn btn-secondary">MEET THE HEROES</a>
+  </div>
+</section>
+
+<section class="swing-demo" id="demo">
+  <div class="swing-demo-inner">
+    <div>
+      <div class="section-tag">// SWING DIRECTIONALITY</div>
+      <h2>Swing <span class="accent">is the input</span>.</h2>
+      <p>Every attack is a continuous 360° vector. The direction you swing determines the launch angle, the damage cone, and the parry window your opponent has to mirror it. No combos. No strings. Just commitment.</p>
+      <p>Parry means swinging within 20° of the opposite vector inside a 100ms window. No damage. No durability cost. Pure skill expression.</p>
+      <p style="font-size: 0.85rem; color: rgba(255,232,222,0.55); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em;">⟵ try it: <span style="color: var(--accent);">drag across the arena</span>. faster drags = bigger hits.</p>
+    </div>
+    <div class="swing-stage" id="swing-stage" data-dir="">
+      <div class="swing-horizon"></div>
+      <div class="swing-ground"></div>
+      <div class="swing-weapon-label" id="swing-weapon-label">LONGSWORD</div>
+      <div class="swing-speed">SPEED · <span class="val" id="swing-speed-val">0.0</span></div>
+      <div class="swing-arc">
+        <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
+          <path id="swing-arc-path" d="M -70 0 A 70 70 0 0 1 70 0" />
+        </svg>
+      </div>
+      <div class="swing-target" id="swing-target">
+        <svg viewBox="0 0 90 140">
+          <!-- training dummy -->
+          <ellipse cx="45" cy="134" rx="26" ry="5" fill="rgba(0,0,0,0.5)"/>
+          <rect x="30" y="92" width="30" height="40" rx="4" fill="#3a1a1e" stroke="#8a1f1a" stroke-width="1.5"/>
+          <rect x="34" y="100" width="22" height="3" fill="#c8844e"/>
+          <rect x="34" y="115" width="22" height="3" fill="#c8844e"/>
+          <rect x="26" y="54" width="38" height="44" rx="5" fill="#4a1f22" stroke="#8a1f1a" stroke-width="1.5"/>
+          <circle cx="45" cy="32" r="16" fill="#3a1a1e" stroke="#8a1f1a" stroke-width="1.5"/>
+          <rect x="40" y="26" width="10" height="2" fill="#FF463A"/>
+          <rect x="40" y="32" width="10" height="2" fill="#FF463A"/>
+          <path d="M 38 42 Q 45 48 52 42" stroke="#FF463A" stroke-width="1.5" fill="none"/>
+          <!-- strap -->
+          <line x1="45" y1="48" x2="45" y2="54" stroke="#8a1f1a" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="swing-weapon" id="swing-weapon"></div>
+      <div class="swing-dmg-layer" id="swing-dmg-layer"></div>
+      <div class="swing-hint" id="swing-hint"><span class="kbd">drag</span> across to swing · flick faster to crit</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="heroes">
+  <div class="section-head">
+    <div class="section-tag">// ROSTER · 6 HEROES</div>
+    <h2 class="section-title">Pick your weapon.</h2>
+    <p class="section-sub">Each hero has a signature weapon and a broken-weapon fallback — so even when your blade snaps, you're not out of the fight.</p>
+  </div>
+  <div class="heroes-grid" id="heroes-grid"></div>
+</section>
+
+<section class="section" id="rules">
+  <div class="section-head">
+    <div class="section-tag">// CORE RULES</div>
+    <h2 class="section-title">No magic. Just swings.</h2>
+  </div>
+  <div class="rules-grid">
+    <div class="rule-card">
+      <div class="num">01</div>
+      <h4>Swing vector = launch vector.</h4>
+      <p>The direction of your swing is the direction your opponent gets knocked. Swing up, they fly up. Swing across, they sail sideways. Physics does the rest.</p>
+    </div>
+    <div class="rule-card">
+      <div class="num">02</div>
+      <h4>Parry is mirror-within-20°.</h4>
+      <p>Opposite the incoming swing inside a 100ms window. Clean parries cost nothing. Missed parries commit you to the wrong swing.</p>
+    </div>
+    <div class="rule-card">
+      <div class="num">03</div>
+      <h4>Weapons break.</h4>
+      <p>Every swing chips durability. At zero, your weapon shatters — and every hero has a broken-weapon kit to survive without it.</p>
+    </div>
+    <div class="rule-card">
+      <div class="num">04</div>
+      <h4>FFA stocks, 3–4 players.</h4>
+      <p>Last one standing takes the round. Ring-outs count. The arena shapes the fight — some maps pull, some push, some crumble.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="cta-inner">
+    <div class="section-tag">// ACCESS</div>
+    <h2>Combat core is coming together.</h2>
+    <p>Sword Rush is in early development. Follow the devlog or reach out if you want to playtest the combat core.</p>
+    <div class="hero-ctas">
+      <a href="/cdn-cgi/l/email-protection#b6d4c4d7cfd2d3d8f6c6d9dadfd5d7c4c6dfd9c598d8d3c2" class="btn btn-primary">REQUEST PLAYTEST →</a>
+      <a href="Portfolio.html" class="btn btn-secondary">← BACK TO PORTFOLIO</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">SWORD<span class="slash">//</span>RUSH</div>
+    <div>Built solo by Brayden. © 2026.</div>
+    <div><a href="Portfolio.html">← Portfolio</a></div>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+/* ─── EMBERS ─── */
+(function embers() {
+  const cvs = document.getElementById('ember-canvas');
+  const ctx = cvs.getContext('2d');
+  let w, h, particles = [];
+  function resize() {
+    w = cvs.width = window.innerWidth;
+    h = cvs.height = window.innerHeight;
+    particles = Array.from({ length: 90 }, () => ({
+      x: Math.random() * w,
+      y: h + Math.random() * h,
+      r: Math.random() * 1.8 + 0.4,
+      vy: -(Math.random() * 0.5 + 0.2),
+      vx: (Math.random() - 0.5) * 0.15,
+      life: Math.random(),
+      lifespan: Math.random() * 0.01 + 0.003
+    }));
+  }
+  function tick() {
+    ctx.clearRect(0, 0, w, h);
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life += p.lifespan;
+      if (p.y < -20 || p.life > 1) {
+        p.x = Math.random() * w;
+        p.y = h + 20;
+        p.life = 0;
+      }
+      const o = Math.sin(p.life * Math.PI) * 0.8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, ${100 + Math.random()*60}, 60, ${o})`;
+      ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(255,80,50,0.7)';
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+    requestAnimationFrame(tick);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(tick);
+})();
+
+/* ─── SCROLL + NAV ─── */
+const navbar = document.getElementById('navbar');
+const progressBar = document.getElementById('scroll-progress');
+window.addEventListener('scroll', () => {
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const p = Math.max(0, Math.min(1, window.scrollY / docHeight));
+  progressBar.style.width = (p * 100) + '%';
+  if (window.scrollY > 60) navbar.classList.add('scrolled');
+  else navbar.classList.remove('scrolled');
+}, { passive: true });
+
+/* ─── SWING ENGINE (shared util) ─── */
+function installSwingEngine(opts) {
+  const { stage, weaponEl, labelEl, speedEl, dmgLayer, target, hint, onHit, onSwing, getWeaponSvg } = opts;
+  if (!stage || !weaponEl) return { setHero: () => {} };
+
+  // weapon SVG per hero
+  const WEAPONS = {
+    // Longsword
+    Dueler: `<svg viewBox="0 0 200 260" style="overflow:visible">
+      <defs><linearGradient id="wBlade${Math.random()}" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#FFE8DE"/><stop offset="0.55" stop-color="#FF6E4A"/><stop offset="1" stop-color="#8a1f1a"/></linearGradient></defs>
+      <polygon points="96,180 104,180 108,20 100,4 92,20" fill="#FFE8DE"/>
+      <polygon points="96,180 104,180 108,20 100,4 92,20" fill="url(#blade)" opacity="0.85"/>
+      <rect x="78" y="178" width="44" height="9" fill="#c8844e"/>
+      <rect x="94" y="187" width="12" height="40" fill="#3a1a1e"/>
+      <rect x="91" y="226" width="18" height="10" rx="2" fill="#c8844e"/>
+      <rect x="72" y="230" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="106" y="230" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    // Dual daggers
+    Rusher: `<svg viewBox="0 0 200 260" style="overflow:visible">
+      <polygon points="64,180 72,180 76,80 68,64 60,80" fill="#FFE8DE"/>
+      <rect x="56" y="178" width="24" height="7" fill="#c8844e"/>
+      <rect x="64" y="184" width="8" height="28" fill="#2a1014"/>
+      <polygon points="128,180 136,180 140,80 132,64 124,80" fill="#FFE8DE"/>
+      <rect x="120" y="178" width="24" height="7" fill="#c8844e"/>
+      <rect x="128" y="184" width="8" height="28" fill="#2a1014"/>
+      <rect x="52" y="214" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="126" y="214" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    // Warhammer
+    Juggernaut: `<svg viewBox="0 0 200 260" style="overflow:visible">
+      <rect x="94" y="80" width="12" height="140" fill="#3a1a1e"/>
+      <rect x="60" y="30" width="80" height="56" rx="4" fill="#7a5a38" stroke="#3a1a1e" stroke-width="3"/>
+      <rect x="66" y="38" width="68" height="8" fill="#c8844e"/>
+      <rect x="66" y="72" width="68" height="8" fill="#c8844e"/>
+      <circle cx="100" cy="58" r="8" fill="#8a1f1a"/>
+      <rect x="72" y="226" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="106" y="226" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    // Spear
+    Polearm: `<svg viewBox="0 0 200 260" style="overflow:visible">
+      <rect x="97" y="40" width="6" height="200" fill="#6a4028"/>
+      <polygon points="92,60 108,60 115,0 100,-14 85,0" fill="#FFE8DE" stroke="#8a1f1a" stroke-width="0.8"/>
+      <rect x="88" y="58" width="24" height="4" fill="#c8844e"/>
+      <rect x="72" y="238" width="22" height="26" rx="6" fill="#2a1014"/>
+      <rect x="106" y="218" width="22" height="30" rx="6" fill="#2a1014"/>
+    </svg>`,
+    // Chain & hook
+    Grappler: `<svg viewBox="0 0 200 260" style="overflow:visible">
+      <g stroke="#8a6040" stroke-width="5" fill="none">
+        <circle cx="100" cy="60" r="7"/><circle cx="100" cy="78" r="7"/><circle cx="100" cy="96" r="7"/>
+        <circle cx="100" cy="114" r="7"/><circle cx="100" cy="132" r="7"/><circle cx="100" cy="150" r="7"/>
+        <circle cx="100" cy="168" r="7"/><circle cx="100" cy="186" r="7"/>
+      </g>
+      <path d="M 100 30 Q 120 20 130 10 Q 138 2 132 -8 Q 125 -16 115 -10" fill="none" stroke="#c8844e" stroke-width="7" stroke-linecap="round"/>
+      <path d="M 115 -10 L 110 0" stroke="#c8844e" stroke-width="4" stroke-linecap="round"/>
+      <rect x="78" y="200" width="22" height="34" rx="6" fill="#2a1014"/>
+      <rect x="102" y="200" width="22" height="34" rx="6" fill="#2a1014"/>
+    </svg>`,
+    // Gauntlets
+    Speerow: `<svg viewBox="0 0 200 260" style="overflow:visible">
+      <rect x="56" y="140" width="36" height="50" rx="8" fill="#3a1a1e" stroke="#c8844e" stroke-width="2"/>
+      <rect x="58" y="148" width="32" height="4" fill="#c8844e"/>
+      <rect x="58" y="158" width="32" height="4" fill="#c8844e"/>
+      <circle cx="74" cy="176" r="3" fill="#FF463A"/>
+      <rect x="108" y="140" width="36" height="50" rx="8" fill="#3a1a1e" stroke="#c8844e" stroke-width="2"/>
+      <rect x="110" y="148" width="32" height="4" fill="#c8844e"/>
+      <rect x="110" y="158" width="32" height="4" fill="#c8844e"/>
+      <circle cx="126" cy="176" r="3" fill="#FF463A"/>
+      <rect x="56" y="188" width="36" height="30" rx="6" fill="#2a1014"/>
+      <rect x="108" y="188" width="36" height="30" rx="6" fill="#2a1014"/>
+    </svg>`
+  };
+
+  let currentHero = 'Dueler';
+  let mx = 0, my = 0;          // mouse relative to stage center (-1..1)
+  let idleAngle = 10;          // resting tilt
+  let currentAngle = idleAngle;
+  let targetAngle = idleAngle;
+  let swinging = false;
+  let swingUntil = 0;
+  let downX = 0, downY = 0, downT = 0;
+  let history = [];            // recent pointer samples for velocity
+
+  function setHero(name) {
+    currentHero = name;
+    weaponEl.innerHTML = WEAPONS[name] || WEAPONS.Dueler;
+    if (labelEl) labelEl.textContent = heroWpnLabel(name);
+  }
+
+  function heroWpnLabel(n) {
+    return ({
+      Dueler: 'LONGSWORD', Rusher: 'DUAL DAGGERS', Juggernaut: 'WARHAMMER',
+      Polearm: 'SPEAR', Grappler: 'CHAIN & HOOK', Speerow: 'GAUNTLETS'
+    })[n] || n.toUpperCase();
+  }
+
+  function stageRect() { return stage.getBoundingClientRect(); }
+
+  function handleMove(clientX, clientY) {
+    const r = stageRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height * 0.82; // hands anchor near bottom-center
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    // angle from straight up; clockwise positive. -120..120 clamp for readability.
+    let ang = Math.atan2(dx, -dy) * 180 / Math.PI;
+    ang = Math.max(-120, Math.min(120, ang));
+    if (!swinging) {
+      targetAngle = ang * 0.7; // damped follow when idle
+    }
+    // track sample for velocity
+    const now = performance.now();
+    history.push({ x: clientX, y: clientY, t: now });
+    while (history.length > 8) history.shift();
+  }
+
+  function computeVelocity() {
+    if (history.length < 2) return { vx: 0, vy: 0, speed: 0, dir: 0 };
+    const a = history[0], b = history[history.length - 1];
+    const dt = Math.max(16, b.t - a.t);
+    const vx = (b.x - a.x) / dt * 1000;
+    const vy = (b.y - a.y) / dt * 1000;
+    const speed = Math.hypot(vx, vy);
+    const dir = Math.atan2(vx, -vy) * 180 / Math.PI;
+    return { vx, vy, speed, dir };
+  }
+
+  function triggerSwing(clientX, clientY) {
+    const { vx, vy, speed, dir } = computeVelocity();
+    const dx = clientX - downX;
+    const dy = clientY - downY;
+    const dragDist = Math.hypot(dx, dy);
+    const dragDir = Math.atan2(dx, -dy) * 180 / Math.PI;
+    // Use drag direction if the drag was substantial, else velocity
+    const useDrag = dragDist > 40;
+    const swingDir = useDrag ? dragDir : dir;
+    // "power" from speed + drag distance
+    const power = Math.min(1, (speed / 2600) * 0.6 + (dragDist / 400) * 0.4);
+    if (power < 0.05 && dragDist < 18) return; // tap — ignore
+    doSwing(swingDir, power, clientX, clientY);
+  }
+
+  function doSwing(angle, power, hitX, hitY) {
+    swinging = true;
+    const dur = 260 + (1 - power) * 260; // faster swings at high power
+    const overshoot = angle + Math.sign(angle || 1) * (12 + power * 18);
+    // Snap weapon to swing anim
+    const startAng = currentAngle;
+    stage.classList.add('swinging');
+    stage.dataset.dir = dirLabel(angle);
+    const startT = performance.now();
+    (function anim(now) {
+      const t = Math.min(1, (now - startT) / dur);
+      const eased = t < 0.6
+        ? (t / 0.6) ** 2
+        : 1 + Math.sin((t - 0.6) / 0.4 * Math.PI) * -0.15;
+      const a = startAng + (overshoot - startAng) * eased;
+      currentAngle = a;
+      weaponEl.style.transform = `translate(-50%, 0) rotate(${a}deg)`;
+      if (t < 1) requestAnimationFrame(anim);
+      else {
+        setTimeout(() => {
+          stage.classList.remove('swinging');
+          swinging = false;
+        }, 100);
+      }
+    })(performance.now());
+
+    // Delay hit detection to mid-swing
+    setTimeout(() => {
+      showHit(angle, power, hitX, hitY);
+      if (onSwing) onSwing({ angle, power });
+    }, dur * 0.45);
+  }
+
+  function dirLabel(a) {
+    if (a < -100) return 'left';
+    if (a > 100) return 'right';
+    if (a < -60) return 'up-left';
+    if (a > 60) return 'up-right';
+    if (a > -20 && a < 20) return 'up';
+    if (a < -20) return 'up-left';
+    return 'up-right';
+  }
+
+  function showHit(angle, power, hitX, hitY) {
+    // compute where the target got hit (target is centered-ish)
+    if (!target) return;
+    const r = stageRect();
+    const tRect = target.getBoundingClientRect();
+    const inside = hitX > tRect.left - 30 && hitX < tRect.right + 30 && hitY > tRect.top - 30 && hitY < tRect.bottom + 30;
+    // For the sword-rush page the target is always the center dummy, so we register a hit for any swing above minimum power
+    const connect = inside || power > 0.1;
+    if (!connect) return;
+
+    // damage calc — hero stats tweak the number
+    const base = 18 + Math.floor(power * 72);
+    const crit = power > 0.7 || (Math.random() < 0.15 && power > 0.35);
+    const dmg = crit ? Math.floor(base * 1.7) : base;
+
+    // target react
+    target.style.setProperty('--hit-x', (Math.sin(angle * Math.PI / 180) * 18) + 'px');
+    target.style.setProperty('--hit-y', (-Math.cos(angle * Math.PI / 180) * 14) + 'px');
+    target.style.setProperty('--hit-r', (angle * 0.1) + 'deg');
+    stage.classList.remove('hit'); void stage.offsetWidth; stage.classList.add('hit');
+
+    // floating damage number
+    if (dmgLayer) {
+      const el = document.createElement('div');
+      el.className = 'swing-dmg' + (crit ? ' crit' : '');
+      // offset numbers a bit at the target center
+      const tx = tRect.left + tRect.width / 2 - r.left + (Math.random() - 0.5) * 40;
+      const ty = tRect.top + tRect.height * 0.3 - r.top + (Math.random() - 0.5) * 20;
+      el.style.left = tx + 'px';
+      el.style.top = ty + 'px';
+      el.innerHTML = crit ? `${dmg}<span class="crit-tag">CRIT</span>` : `${dmg}`;
+      dmgLayer.appendChild(el);
+      setTimeout(() => el.remove(), 950);
+    }
+    if (onHit) onHit({ dmg, crit, power });
+  }
+
+  // Pointer handlers
+  stage.addEventListener('pointermove', (e) => {
+    handleMove(e.clientX, e.clientY);
+    if (!swinging) weaponEl.style.transform = `translate(-50%, 0) rotate(${targetAngle}deg)`;
+    // speed HUD
+    if (speedEl) {
+      const { speed } = computeVelocity();
+      speedEl.textContent = (speed / 1000).toFixed(1);
+    }
+  });
+  stage.addEventListener('pointerdown', (e) => {
+    stage.setPointerCapture(e.pointerId);
+    stage.classList.add('holding');
+    downX = e.clientX; downY = e.clientY; downT = performance.now();
+    history = [{ x: e.clientX, y: e.clientY, t: downT }];
+  });
+  stage.addEventListener('pointerup', (e) => {
+    stage.classList.remove('holding');
+    try { stage.releasePointerCapture(e.pointerId); } catch {}
+    triggerSwing(e.clientX, e.clientY);
+  });
+  stage.addEventListener('pointerleave', () => {
+    stage.classList.remove('holding');
+    if (!swinging) {
+      targetAngle = idleAngle;
+      weaponEl.style.transform = `translate(-50%, 0) rotate(${idleAngle}deg)`;
+    }
+  });
+
+  // init pose
+  weaponEl.style.transform = `translate(-50%, 0) rotate(${idleAngle}deg)`;
+
+  // expose
+  setHero('Dueler');
+  return { setHero };
+}
+
+/* ─── SWING DEMO WIRE ─── */
+const stage = document.getElementById('swing-stage');
+const engine = installSwingEngine({
+  stage,
+  weaponEl:  document.getElementById('swing-weapon'),
+  labelEl:   document.getElementById('swing-weapon-label'),
+  speedEl:   document.getElementById('swing-speed-val'),
+  dmgLayer:  document.getElementById('swing-dmg-layer'),
+  target:    document.getElementById('swing-target'),
+  hint:      document.getElementById('swing-hint')
+});
+
+/* ─── HEROES ─── */
+const HEROES = [
+  { name: 'Dueler',     diff: '★☆☆', wpn: 'LONGSWORD',   stats: [3,3,3,3,3], desc: 'The teaching hero. Honest, well-rounded. Riposte Stance turns a clean parry into a guaranteed lunge.' },
+  { name: 'Rusher',     diff: '★★☆', wpn: 'DUAL DAGGERS', stats: [2,1,1,5,5], desc: 'Aerial assassin. Keeps everyone airborne. Wall-kick redirects on command, Blurstep unlocks mixups.' },
+  { name: 'Juggernaut', diff: '★★☆', wpn: 'WARHAMMER',    stats: [5,4,3,1,2], desc: 'Momentum incarnate. Slowest swings, highest per-hit damage. Brace makes you immovable.' },
+  { name: 'Polearm',    diff: '★★★', wpn: 'SPEAR',        stats: [3,2,5,3,3], desc: 'Space control. Punishes whiffs. Low Sweep knocks down — no Landing i-frames.' },
+  { name: 'Grappler',   diff: '★★★', wpn: 'CHAIN & HOOK', stats: [2,3,2,3,3], desc: 'Arena-shaper. Hook Grab, Ground Anchor, Maelstrom — a walking gravity well.' },
+  { name: 'Speerow',    diff: '★★★', wpn: 'GAUNTLETS',    stats: [2,2,1,5,5], desc: 'Grounded rushdown boxer. Slip Step cancels whiffs. Keeps kit even with broken "weapon".' }
+];
+const LABELS = ['ATK','DEF','RNG','SPD','MOV'];
+const grid = document.getElementById('heroes-grid');
+
+function renderHeroes(active) {
+  grid.innerHTML = HEROES.map((h, i) => `
+    <button class="hero-card${i===active?' active':''}" data-hero="${i}" aria-pressed="${i===active}">
+      <div class="diff">${h.diff}</div>
+      <h4>${h.name}</h4>
+      <div class="wpn">${h.wpn}</div>
+      <p>${h.desc}</p>
+      <div class="stats-mini">
+        ${h.stats.map((v, i) => `
+          <div class="stat">
+            <div class="lbl">${LABELS[i]}</div>
+            <div class="bars">${[1,2,3,4,5].map(n => `<i class="${n<=v?'on':''}"></i>`).join('')}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="hero-pick">Pick · swing in demo ↑</div>
+    </button>
+  `).join('');
+}
+
+let activeHero = 0;
+renderHeroes(activeHero);
+
+grid.addEventListener('click', (e) => {
+  const card = e.target.closest('.hero-card');
+  if (!card) return;
+  const i = parseInt(card.dataset.hero, 10);
+  activeHero = i;
+  renderHeroes(activeHero);
+  engine.setHero(HEROES[i].name);
+  // smooth scroll back to demo
+  document.getElementById('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+</script>
+
+</body>
+</html>

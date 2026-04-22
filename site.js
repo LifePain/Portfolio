@@ -56,14 +56,15 @@ const TWEAKS = Object.assign({
   intensity: 'medium',
   warpStreaks: true,
   universeBleed: true,
-  scrollSnap: true
+  scrollSnap: false
 }, (window.TWEAK_DEFAULTS || {}));
 
 function applyTweaksToHtml() {
   const h = document.documentElement;
   h.dataset.intensity = TWEAKS.intensity;
   h.dataset.warp = TWEAKS.warpStreaks ? 'on' : 'off';
-  h.classList.toggle('snap-on', !!TWEAKS.scrollSnap);
+  // Snap scroll is enforced for all users; no longer user-togglable.
+  h.classList.add('snap-on');
 }
 applyTweaksToHtml();
 
